@@ -27,7 +27,6 @@ def mapeia_verde(sensor):
 
 bat = hub.battery.voltage()
 print(bat)
-andar.turn(-800)
 while True:
     esq_e_verde = mapeia_verde(coresq)
     dir_e_verde = mapeia_verde(cordir)
@@ -35,5 +34,6 @@ while True:
     esq = coresq.color()
     dir = cordir.color()
     meio = cormeio.reflection()
+    motor_dir.run(999)
+    motor_esq.run(999)
     wait(10)
-    print("esquerda: {}, meio: {}, direita: {}, distância: {}".format(esq, meio, dir, dist))

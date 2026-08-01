@@ -15,9 +15,10 @@ motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)
 motor_dir = Motor(Port.E)
 
 andar = DriveBase(motor_esq, motor_dir, 63, 133)
+andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)
 
 Color.SILVER = Color(h=0, s=0, v=75)
-cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.BLUE)
+cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE)
 cordir.detectable_colors(cores)
 coresq.detectable_colors(cores)
 
@@ -28,6 +29,7 @@ ki = 0.01
 kd = 25
 integral = 0
 erro_anterior = 0
+ultimo_dist = 0
 
 def mapeia_verde(sensor):
     dados = sensor.hsv()
@@ -44,17 +46,47 @@ while True:
     esq = coresq.color()
     dir = cordir.color()
     meio = cormeio.reflection()
-    if dist < 100:
-        motor_esq.stop()
-        motor_dir.stop()
-        andar.turn(-105)
-        andar.arc(radius=210, angle=215, wait=False)
+    if dist < 120:
+        ultimo_dist = dist
+        motor_esq.run(-50)
+        motor_dir.run(50)
+        wait(500)
+        dist = ultra.distance()
+        if dist > ultimo_dist:
+            while dist > ultimo_dist:
+                ultimo_dist = dist
+                motor_esq.run(50)
+                motor_dir.run(-50)
+                wait(50)
+                dist = ultra.distance()
+        dist = ultra.distance()
+        ultimo_dist = dist
+        motor_esq.run(-50)
+        motor_dir.run(50)
         wait(1000)
-        while not andar.done():
-            if cormeio.reflection() < 45:
-                andar.stop()
-                break
-            wait(10)
+        dist = ultra.distance()
+        while dist < ultimo_dist:
+            ultimo_dist = dist
+            motor_esq.run(-50)
+            motor_dir.run(50)
+            wait(50)
+            dist = ultra.distance()
+        andar.turn(130)
+        andar.straight(200)
+        andar.turn(-105)
+        andar.straight(400)
+        andar.turn(-105)
+        andar.straight(200)
+        andar.turn(-110)
+        andar.straight(-30)
+        motor_esq.run(-100)
+        motor_dir.run(100)
+        wait(1000)
+        meio = cormeio.reflection()
+        while meio > 80:
+            motor_esq.run(-100)
+            motor_dir.run(100)
+            meio = cormeio.reflection()
         integral = 0
         erro_anterior = 0
     else:
