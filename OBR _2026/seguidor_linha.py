@@ -46,44 +46,31 @@ while True:
     esq = coresq.color()
     dir = cordir.color()
     meio = cormeio.reflection()
-    if dist < 120:
-        ultimo_dist = dist
-        motor_esq.run(-50)
-        motor_dir.run(50)
-        wait(500)
-        dist = ultra.distance()
-        if dist > ultimo_dist:
-            while dist > ultimo_dist:
-                ultimo_dist = dist
-                motor_esq.run(50)
-                motor_dir.run(-50)
-                wait(50)
-                dist = ultra.distance()
-        dist = ultra.distance()
-        ultimo_dist = dist
-        motor_esq.run(-50)
-        motor_dir.run(50)
-        wait(1000)
-        dist = ultra.distance()
-        while dist < ultimo_dist:
-            ultimo_dist = dist
-            motor_esq.run(-50)
-            motor_dir.run(50)
-            wait(50)
+    if dist < 75:
+        andar.turn(80)
+        ultimo_dist = ultra.distance()
+        while dist <= ultimo_dist:
+            ultimo_dist = ultra.distance()
+            motor_esq.run(-100)
+            motor_dir.run(100)
+            wait(10)
             dist = ultra.distance()
-        andar.turn(130)
+            if dist > 300: dist = 300
+            if ultimo_dist > 300: ultimo_dist = 300
+            if dist > (ultimo_dist + 1): dist = ultimo_dist
+            print("distância: {}, ultima: {}".format(dist, ultimo_dist))
+        andar.turn(100)
         andar.straight(200)
-        andar.turn(-105)
+        andar.turn(-95)
         andar.straight(400)
-        andar.turn(-105)
-        andar.straight(200)
         andar.turn(-110)
-        andar.straight(-30)
+        andar.straight(210)
+        andar.turn(-115)
         motor_esq.run(-100)
         motor_dir.run(100)
-        wait(1000)
+        wait(2500)
         meio = cormeio.reflection()
-        while meio > 80:
+        while meio > 80 and esq != Color.BLACK and dir != Color.BLACK:
             motor_esq.run(-100)
             motor_dir.run(100)
             meio = cormeio.reflection()
