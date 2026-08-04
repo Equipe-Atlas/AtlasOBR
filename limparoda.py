@@ -21,34 +21,24 @@ hub.imu.reset_heading(0)
 
 def mapeia_verde(sensor):
     dados = sensor.hsv()
-    if (100 <= dados.h <= 160) and (dados.s > 45) and (20 <= dados.v <= 70):
+    if (150 <= dados.h <= 180) and (dados.s > 30) and (50 <= dados.v <= 100):
         return True
     return False
 
 bat = hub.battery.voltage()
 print(bat)
 while True:
-    motor_esq.run(100)
-    motor_dir.run(100)
     esq_e_verde = mapeia_verde(coresq)
     dir_e_verde = mapeia_verde(cordir)
     dist = ultra.distance()
     esq = coresq.color()
     dir = cordir.color()
     meio = cormeio.reflection()
-    if dist < 100:
-        andar.turn(80)
-        ultimo_dist = ultra.distance()
-        while dist <= ultimo_dist:
-            ultimo_dist = ultra.distance()
-            motor_esq.run(-100)
-            motor_dir.run(100)
-            wait(10)
-            dist = ultra.distance()
-            if dist > 300: dist = 300
-            if ultimo_dist > 300: ultimo_dist = 300
-            if dist > (ultimo_dist + 1): dist = ultimo_dist
-            print("distância: {}, ultima: {}".format(dist, ultimo_dist))
-        andar.turn(95)
-        andar.stop()
-        wait(999999)
+    if esq_e_verde or dir_e_verde:
+        hub.light.on(Color.GREEN)
+    else:
+        hub.light.on(Color.RED)
+    print("H: {}, S: {}, V: {}".format(coresq.hsv().h, coresq.hsv().s, coresq.hsv().v))
+    motor_esq.run(1200)
+    motor_dir.run(1200)
+    

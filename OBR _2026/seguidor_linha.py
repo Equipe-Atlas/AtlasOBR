@@ -33,7 +33,7 @@ ultimo_dist = 0
 
 def mapeia_verde(sensor):
     dados = sensor.hsv()
-    if (100 <= dados.h <= 160) and (dados.s > 45) and (20 <= dados.v <= 70):
+    if (150 <= dados.h <= 180) and (dados.s > 30) and (50 <= dados.v <= 100):
         return True
     return False
 
@@ -61,7 +61,7 @@ while True:
             print("distância: {}, ultima: {}".format(dist, ultimo_dist))
         andar.turn(100)
         andar.straight(200)
-        andar.turn(-95)
+        andar.turn(-105)
         andar.straight(400)
         andar.turn(-110)
         andar.straight(210)
@@ -70,7 +70,7 @@ while True:
         motor_dir.run(100)
         wait(2500)
         meio = cormeio.reflection()
-        while meio > 80 and esq != Color.BLACK and dir != Color.BLACK:
+        while meio > 80:
             motor_esq.run(-100)
             motor_dir.run(100)
             meio = cormeio.reflection()
@@ -117,9 +117,10 @@ while True:
                 dirpreto = False
                 esqpreto = False
         else:
-            if esq == Color.WHITE and meio > 90 and dir == Color.WHITE:
+            if esq != Color.BLACK and meio > 90 and dir != Color.BLACK:
                 motor_esq.run(vel)
                 motor_dir.run(vel)
+                wait(100)
             elif dir == Color.BLACK and esq == Color.BLACK:
                 motor_esq.run(vel)
                 motor_dir.run(vel)
