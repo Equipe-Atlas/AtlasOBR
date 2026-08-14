@@ -18,24 +18,33 @@ andar = DriveBase(motor_esq, motor_dir, 63, 133)
 andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)
 
 Color.SILVER = Color(h=0, s=0, v=75)
-cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE)
+Color.BLACK = Color(h=240 < 180, s=100 < 10, v=30 < 10)
+cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.RED)
 cordir.detectable_colors(cores)
 coresq.detectable_colors(cores)
 
+omnitrix = StopWatch()
+
 reflection = 36  
-vel = 150        
-kp = 5
-ki = 0.01
-kd = 25
+vel = 150       
+kp = 4
+ki = 0.05
+kd = 20
 integral = 0
 erro_anterior = 0
 ultimo_dist = 0
+ultima_arfagem = 0
+dirpreto = False
+esqpreto = False
+tempo = 0
 
 def mapeia_verde(sensor):
     dados = sensor.hsv()
-    if (150 <= dados.h <= 180) and (dados.s > 30) and (50 <= dados.v <= 100):
+    if (160 <= dados.h <= 200) and (dados.s > 30) and (50 <= dados.v <= 100):
         return True
     return False
+
+hub.imu.reset_heading(0)
 
 hub.light.on(Color.BLUE)
 
@@ -46,139 +55,168 @@ while True:
     esq = coresq.color()
     dir = cordir.color()
     meio = cormeio.reflection()
-    if dist < 75:
-        andar.turn(80)
-        ultimo_dist = ultra.distance()
-        while dist <= ultimo_dist:
-            ultimo_dist = ultra.distance()
-            motor_esq.run(-100)
-            motor_dir.run(100)
-            wait(10)
-            dist = ultra.distance()
-            if dist > 300: dist = 300
-            if ultimo_dist > 300: ultimo_dist = 300
-            if dist > (ultimo_dist + 1): dist = ultimo_dist
-            print("distância: {}, ultima: {}".format(dist, ultimo_dist))
-        andar.turn(100)
-        andar.straight(200)
-        andar.turn(-105)
-        andar.straight(400)
-        andar.turn(-110)
-        andar.straight(210)
-        andar.turn(-115)
-        motor_esq.run(-100)
-        motor_dir.run(100)
-        wait(2500)
-        meio = cormeio.reflection()
-        while meio > 80:
-            motor_esq.run(-100)
-            motor_dir.run(100)
-            meio = cormeio.reflection()
-        integral = 0
-        erro_anterior = 0
+    arfagem, rolagem = hub.imu.tilt()
+    arfagem = arfagem + 3.6
+    hsv_esq = coresq.hsv()
+    hsv_meio = cormeio.hsv()
+    hsv_dir = cordir.hsv()
+    if arfagem > 3 or arfagem < -3:
+        ultima_arfagem = arfagem
+        motor_esq.run(200)
+        motor_dir.run(200)
+        wait(200)
+        arfagem, rolagem = hub.imu.tilt()
+        arfagem = arfagem + 3.6   
+        while arfagem > ultima_arfagem - 1 or arfagem < ultima_arfagem + 1:
+            ultima_arfagem = arfagem
+            motor_esq.run(200)
+            motor_dir.run(200)
+            wait(50)
+            arfagem, rolagem = hub.imu.tilt()
+            arfagem = arfagem + 3.6
+            print(arfagem, "      ", ultima_arfagem)
+        while arfagem > 3 or arfagem < -3:
+            andar.stop()
+            wait(999999)
     else:
-        if esq_e_verde and dir_e_verde or esq == Color.GREEN and dir == Color.GREEN:
-            andar.turn(-200)
-            andar.straight(50)
-        elif esq_e_verde or esq == Color.GREEN:
-            while esq != Color.WHITE:
-                motor_esq.run(-50)
-                motor_dir.run(0)
-                esq = coresq.color()
-            andar.straight(15)
-            dir = cordir.color()
-            wait(100)
-            if dir == Color.GREEN:
+        if dist < 75:
+            andar.turn(80)
+            ultimo_dist = ultra.distance()
+            while dist <= ultimo_dist:
+                ultimo_dist = ultra.distance()
+                motor_esq.run(-100)
+                motor_dir.run(100)
+                wait(10)
+                dist = ultra.distance()
+                if dist > 300: dist = 300
+                if ultimo_dist > 300: ultimo_dist = 300
+                if dist > (ultimo_dist + 1): dist = ultimo_dist
+                print("distância: {}, ultima: {}".format(dist, ultimo_dist))
+            andar.turn(100)
+            andar.straight(200)
+            andar.turn(-110)
+            andar.straight(400)
+            andar.turn(-110)
+            andar.straight(210)
+            andar.turn(-115)
+            motor_esq.run(-100)
+            motor_dir.run(100)
+            wait(2500)
+            meio = cormeio.reflection()
+            while meio > 80:
+                motor_esq.run(-100)
+                motor_dir.run(100)
+                meio = cormeio.reflection()
+            integral = 0
+            erro_anterior = 0
+        else:
+            if esq_e_verde and dir_e_verde or esq == Color.GREEN or dir == Color.GREEN:
                 andar.turn(-200)
                 andar.straight(50)
-            else:
-                andar.straight(50)
-                andar.turn(-90)
-                andar.straight(50)
-        elif dir_e_verde or dir == Color.GREEN:
-            if dirpreto == False or esqpreto == False:
-                while dir != Color.WHITE:
-                    motor_esq.run(0)
-                    motor_dir.run(-50)
+            elif esq_e_verde or esq == Color.GREEN:
+                if dirpreto == False or esqpreto == False:
+                    while esq != Color.WHITE:
+                        motor_esq.run(-50)
+                        motor_dir.run(0)
+                        esq = coresq.color()
+                    andar.straight(15)
                     dir = cordir.color()
-                andar.straight(15)
-                esq = coresq.color()
-                wait(100)
-                if esq == Color.GREEN:
-                    andar.turn(-200)
+                    wait(100)
+                    if dir == Color.GREEN:
+                        andar.turn(-200)
+                        andar.straight(50)
+                    else:
+                        andar.straight(50)
+                        andar.turn(-90)
+                        andar.straight(50)
+                elif esqpreto == True or dirpreto == True:
                     andar.straight(50)
-                else:
-                    andar.straight(50)
-                    andar.turn(90)
-                    andar.straight(50)
-                dirpreto = False
-            elif esqpreto == True or dirpreto == True:
-                andar.straight(50)
-                dirpreto = False
-                esqpreto = False
-        else:
-            if esq != Color.BLACK and meio > 90 and dir != Color.BLACK:
-                motor_esq.run(vel)
-                motor_dir.run(vel)
-                wait(100)
-            elif dir == Color.BLACK and esq == Color.BLACK:
-                motor_esq.run(vel)
-                motor_dir.run(vel)
+                    dirpreto = False
+                    esqpreto = False
+            elif dir_e_verde or dir == Color.GREEN:
+                if dirpreto == False or esqpreto == False:
+                    while dir != Color.BLACK and esq != Color.WHITE:
+                        motor_esq.run(100)
+                        motor_dir.run(100)
+                        dir = cordir.color()
+                        wait(20)
+                    if dir == Color.WHITE: andar.straight(20)
+                    elif dir == Color.BLACK:
+                        while dir != Color.WHITE:
+                            motor_esq.run(0)
+                            motor_dir.run(-50)
+                            dir = cordir.color()
+                        andar.straight(15)
+                        esq = coresq.color()
+                        wait(100)
+                        if esq == Color.GREEN:
+                            andar.turn(-200)
+                            andar.straight(50)
+                        else:
+                            andar.straight(50)
+                            andar.turn(90)
+                            andar.straight(50)
+                        dirpreto = False
+                    elif esqpreto == True or dirpreto == True:
+                        andar.straight(50)
+                        dirpreto = False
+                        esqpreto = False
             else:
-                erro = reflection - meio
-                integral = integral + erro
-                if integral > 100: integral = 100
-                if integral < -100: integral = -100
-                derivada = erro - erro_anterior
-                correcao = (kp * erro) + (ki * integral) + (kd * derivada)
-                if correcao > 200: correcao = 200
-                elif correcao < -200: correcao = -200
-                if dir != Color.WHITE and dir != Color.GREEN and meio > 15:
+                if esq == Color.WHITE and meio > 90 and dir == Color.WHITE:
+                    motor_esq.run(vel)
+                    motor_dir.run(vel)
+                    wait(100)
+                elif dir == Color.BLACK and esq == Color.BLACK:
+                    motor_esq.run(vel)
+                    motor_dir.run(vel)
                     dirpreto = True
-                    andar.straight(20)
-                    meio = cormeio.reflection()
-                    dir = cordir.color()
-                    esq = coresq.color()
-                    if meio > 60:
-                        while meio > 60:
-                            motor_esq.run(150)
-                            motor_dir.run(-150)
-                            meio = cormeio.reflection()
-                    elif esq == Color.GREEN or dir == Color.GREEN:
-                        esqpreto = False
-                        dirpreto = False
-                    else:
-                        andar.straight(40)
-                        meio = cormeio.reflection()
-                        if meio > 60:
-                            while meio > 60:
-                                motor_esq.run(150)
-                                motor_dir.run(-150)
-                                meio = cormeio.reflection()
-                elif esq != Color.WHITE and esq != Color.GREEN and meio > 15:
                     esqpreto = True
-                    andar.straight(20)
-                    meio = cormeio.reflection()
-                    if meio > 60:
-                        while meio > 60:
-                            motor_esq.run(-150)
-                            motor_dir.run(150)
+                    wait(500)
+                else:
+                    erro = reflection - meio
+                    integral = integral + erro
+                    if integral > 100: integral = 100
+                    if integral < -100: integral = -100
+                    derivada = erro - erro_anterior
+                    correcao = (kp * erro) + (ki * integral) + (kd * derivada)
+                    if correcao > 300: correcao = 300
+                    elif correcao < -300: correcao = -300
+                    if dir == Color.BLACK and dir != Color.GREEN and meio > 25:
+                        dirpreto = True
+                        while meio > 25:
+                            motor_esq.run(100)
+                            motor_dir.run(-125)
                             meio = cormeio.reflection()
-                    elif esq == Color.GREEN or dir == Color.GREEN:
-                        esqpreto = False
-                        dirpreto = False
-                    else:
-                        andar.straight(40)
-                        meio = cormeio.reflection()
-                        if meio > 60:
-                            while meio > 60:
-                                motor_esq.run(-150)
-                                motor_dir.run(150)
-                                meio = cormeio.reflection()
-                motor_esq.run(vel + correcao)
-                motor_dir.run(vel - correcao) 
-                erro_anterior = erro
-                dirpreto = False
-                esqpreto = False
+                            esq = coresq.color()
+                            if esq == Color.BLACK:
+                                while meio > 25:
+                                    motor_esq.run(-125)
+                                    motor_dir.run(100)
+                                    meio = cormeio.reflection()
+                                    wait(20)
+                        if esq_e_verde or dir_e_verde or esq == Color.GREEN or dir == Color.GREEN:
+                            andar.straight(40)
+                    elif esq == Color.BLACK and esq != Color.GREEN and meio > 25:
+                        esqpreto = True
+                        while meio > 25:
+                            motor_esq.run(-125)
+                            motor_dir.run(100)
+                            meio = cormeio.reflection()
+                            dir = cordir.color()
+                            if dir == Color.BLACK:
+                                while meio > 25:
+                                    motor_esq.run(100)
+                                    motor_dir.run(-125)
+                                    meio = cormeio.reflection()
+                                    wait(20)
+                            wait(20)
+                        if esq_e_verde or dir_e_verde or esq == Color.GREEN or dir == Color.GREEN:
+                            andar.straight(40)
+                    motor_esq.run(vel + correcao)
+                    motor_dir.run(vel - correcao) 
+                    erro_anterior = erro
+                    dirpreto = False
+                    esqpreto = False
+    print(hsv_esq.h, hsv_esq.s, hsv_esq.v, hsv_dir.h, hsv_dir.s, hsv_dir.v)
     wait(20)
-    print("esquerda: {}, meio: {}, direita: {}, distância: {}".format(esq, meio, dir, dist))
+    

@@ -1,7 +1,7 @@
 from pybricks.hubs import PrimeHub
 from pybricks.pupdevices import Motor, UltrasonicSensor, ColorSensor 
 from pybricks.parameters import Color, Port, Direction
-from pybricks.tools import wait
+from pybricks.tools import wait, StopWatch
 from pybricks.robotics import DriveBase
 
 hub = PrimeHub(broadcast_channel=1, observe_channels=[2])
@@ -13,6 +13,13 @@ coresq = ColorSensor(Port.D)
 
 motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)
 motor_dir = Motor(Port.E)
+Color.SILVER = Color(h=0, s=0, v=75)
+Color.BLACK = Color(h=240 < 170, s=40<1, v= 100 < 10)
+cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.RED)
+cordir.detectable_colors(cores)
+coresq.detectable_colors(cores)
+
+omnitrix = StopWatch()
 
 andar = DriveBase(motor_esq, motor_dir, 63, 133)
 andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)
@@ -21,9 +28,21 @@ hub.imu.reset_heading(0)
 
 def mapeia_verde(sensor):
     dados = sensor.hsv()
-    if (150 <= dados.h <= 180) and (dados.s > 30) and (50 <= dados.v <= 100):
+    if (150 <= dados.h <= 210) and (dados.s > 30) and (40 <= dados.v <= 110):
         return True
     return False
+
+reflection = 36  
+vel = 150       
+kp = 4
+ki = 0.01
+kd = 20
+integral = 0
+erro_anterior = 0
+ultimo_dist = 0
+ultima_arfagem = 0
+dirpreto = False
+esqpreto = False
 
 bat = hub.battery.voltage()
 print(bat)
@@ -34,11 +53,11 @@ while True:
     esq = coresq.color()
     dir = cordir.color()
     meio = cormeio.reflection()
-    if esq_e_verde or dir_e_verde:
-        hub.light.on(Color.GREEN)
-    else:
-        hub.light.on(Color.RED)
-    print("H: {}, S: {}, V: {}".format(coresq.hsv().h, coresq.hsv().s, coresq.hsv().v))
-    motor_esq.run(1200)
-    motor_dir.run(1200)
+    arfagem, rolagem = hub.imu.tilt()
+    arfagem = arfagem + 3.6
+    hsv_esq = coresq.hsv()
+    hsv_meio = cormeio.hsv()
+    hsv_dir = cordir.hsv() 
+    wait(20)
+    print(hsv_esq.h, hsv_esq.s, hsv_esq.v, hsv_dir.h, hsv_dir.s, hsv_dir.v) 
     
