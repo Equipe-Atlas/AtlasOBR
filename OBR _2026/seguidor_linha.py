@@ -110,7 +110,7 @@ while True:
             integral = 0
             erro_anterior = 0
         else:
-            if esq_e_verde and dir_e_verde or esq == Color.GREEN or dir == Color.GREEN:
+            if esq_e_verde and dir_e_verde or esq == Color.GREEN and dir == Color.GREEN:
                 andar.turn(-200)
                 andar.straight(50)
             elif esq_e_verde or esq == Color.GREEN:
@@ -126,7 +126,7 @@ while True:
                         andar.turn(-200)
                         andar.straight(50)
                     else:
-                        andar.straight(50)
+                        andar.straight(30)
                         andar.turn(-90)
                         andar.straight(50)
                 elif esqpreto == True or dirpreto == True:
@@ -135,32 +135,25 @@ while True:
                     esqpreto = False
             elif dir_e_verde or dir == Color.GREEN:
                 if dirpreto == False or esqpreto == False:
-                    while dir != Color.BLACK and esq != Color.WHITE:
-                        motor_esq.run(100)
-                        motor_dir.run(100)
+                    while dir != Color.WHITE:
+                        motor_esq.run(0)
+                        motor_dir.run(-50)
                         dir = cordir.color()
-                        wait(20)
-                    if dir == Color.WHITE: andar.straight(20)
-                    elif dir == Color.BLACK:
-                        while dir != Color.WHITE:
-                            motor_esq.run(0)
-                            motor_dir.run(-50)
-                            dir = cordir.color()
-                        andar.straight(15)
-                        esq = coresq.color()
-                        wait(100)
-                        if esq == Color.GREEN:
-                            andar.turn(-200)
-                            andar.straight(50)
-                        else:
-                            andar.straight(50)
-                            andar.turn(90)
-                            andar.straight(50)
-                        dirpreto = False
-                    elif esqpreto == True or dirpreto == True:
+                    andar.straight(15)
+                    esq = coresq.color()
+                    wait(100)
+                    if esq == Color.GREEN:
+                        andar.turn(-200)
                         andar.straight(50)
-                        dirpreto = False
-                        esqpreto = False
+                    else:
+                        andar.straight(30)
+                        andar.turn(90)
+                        andar.straight(50)
+                    dirpreto = False
+                elif esqpreto == True or dirpreto == True:
+                    andar.straight(50)
+                    dirpreto = False
+                    esqpreto = False
             else:
                 if esq == Color.WHITE and meio > 90 and dir == Color.WHITE:
                     motor_esq.run(vel)
