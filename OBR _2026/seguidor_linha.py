@@ -1,228 +1,167 @@
-from pybricks.hubs import PrimeHub                                  #
-from pybricks.pupdevices import Motor, UltrasonicSensor, ColorSensor#
-from pybricks.parameters import Color, Port, Direction              #   biliotecas
-from pybricks.tools import wait, StopWatch                          #
-from pybricks.robotics import DriveBase                             #
+from pybricks.hubs import PrimeHub
+from pybricks.pupdevices import Motor, UltrasonicSensor, ColorSensor
+from pybricks.parameters import Color, Port, Direction
+from pybricks.tools import wait, StopWatch
+from pybricks.robotics import DriveBase
 
-hub = PrimeHub(broadcast_channel=1, observe_channels=[2]) # definição do hub e dos canais
+CANAL_PROMETEU = 1
+CANAL_ATLAS = 2
 
-ultra = UltrasonicSensor(Port.C)                                        #
-cordir = ColorSensor(Port.B)                                            #
-cormeio = ColorSensor(Port.A)                                           # declaração de motores e sensores
-coresq = ColorSensor(Port.D)                                            #
-motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)#
-motor_dir = Motor(Port.E)                                               #
+hub = PrimeHub(broadcast_channel=CANAL_PROMETEU,observe_channels=[CANAL_ATLAS])
 
-andar = DriveBase(motor_esq, motor_dir, 63, 133)                                                   #
-andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)# definição da função andar
+motor_esq = Motor(Port.F,positive_direction=Direction.COUNTERCLOCKWISE)
+motor_dir = Motor(Port.E)
 
-Color.SILVER = Color(h=0, s=0, v=75)                                                #
-Color.BLACK = Color(h=240 < 180, s=100 < 10, v=50 < 10)                             #
-cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.RED)# definição das cores que o robo pode ler
-cordir.detectable_colors(cores)                                                     #  
-coresq.detectable_colors(cores)                                                     #
+sensor_esq = ColorSensor(Port.B)
+sensor_dir = ColorSensor(Port.D)
+sensor_meio = ColorSensor(Port.A)
+ultra = UltrasonicSensor(Port.C)
 
-omnitrix = StopWatch() # declaração da função para contar tempo
+andar = DriveBase(
+    motor_esq,
+    motor_dir,
+    63,
+    133
+)
 
-reflection = 36    #
-vel = 150          #
-kp = 4             #
-ki = 0.05          #
-kd = 20            #
-integral = 0       # declaração das variaveis
-erro_anterior = 0  #
-ultimo_dist = 0    #
-ultima_arfagem = 0 #
-dirpreto = False   #
-esqpreto = False   #
-tempo = 0
+andar.settings(
+    straight_speed=100,
+    straight_acceleration=300,
+    turn_rate=100,
+    turn_acceleration=300
+)
 
-def mapeia_verde(sensor):                                                     #
-    dados = sensor.hsv()                                                      #
-    if (160 <= dados.h <= 200) and (dados.s > 40) and (50 <= dados.v <= 100): # função ler verde
-        return True                                                           #
-    return False                                                              #
 
-hub.imu.reset_heading(0) # reinicia a guinada
+V_PRETO = 15
+V_PRATA = 77
+V_BRANCO = 100
+TOL_PRATA = 18
+CONFIRMACOES_PRATA = 4
+REFLEXAO = 36
+VEL = 150
+KP = 4
+KI = 0.05
+KD = 20
+integral = 0
+erro_anterior = 0
+contador_prata = 0
+sequencia = 0
+ultima_sequencia = -1
+estado = "LINHA"
 
-hub.light.on(Color.BLUE) # liga a luz azul no hub
+timer_comunicacao = StopWatch()
+def enviar(tipo, valor=0):
+    global sequencia
 
-while True: # laço de repetição infinito
-    esq_e_verde = mapeia_verde(coresq)  #
-    dir_e_verde = mapeia_verde(cordir)  #
-    dist = ultra.distance()             #
-    esq = coresq.color()                #
-    dir = cordir.color()                #
-    meio = cormeio.reflection()         # leitura de sensores
-    arfagem, rolagem = hub.imu.tilt()   #
-    arfagem = arfagem + 3.6             #
-    hsv_esq = coresq.hsv()              #
-    hsv_meio = cormeio.hsv()            #
-    hsv_dir = cordir.hsv()              #
-    if arfagem > 3 or arfagem < -3:
-        ultima_arfagem = arfagem
-        motor_esq.run(200)
-        motor_dir.run(200)
-        wait(200)
-        arfagem, rolagem = hub.imu.tilt()
-        arfagem = arfagem + 3.6   
-        while arfagem > ultima_arfagem - 1 or arfagem < ultima_arfagem + 1:
-            ultima_arfagem = arfagem
-            motor_esq.run(200)
-            motor_dir.run(200)
-            wait(50)
-            arfagem, rolagem = hub.imu.tilt()
-            arfagem = arfagem + 3.6
-            print(arfagem, "      ", ultima_arfagem)
-        while arfagem > 3 or arfagem < -3:
-            andar.stop()
-            wait(999999)
+    sequencia += 1
+    hub.ble.broadcast((tipo, valor, sequencia))
+
+
+def receber():
+    global ultima_sequencia
+    msg = hub.ble.observe(CANAL_ATLAS)
+    if msg is None:
+        return None
+    if len(msg) >= 3:
+        if msg[2] <= ultima_sequencia:
+            return None
+        ultima_sequencia = msg[2]
+    return msg
+
+def e_prata(sensor):
+    h, s, v = sensor.hsv()
+    if s > 20:
+        return False
+    dp = abs(v - V_PRETO)
+    ds = abs(v - V_PRATA)
+    db = abs(v - V_BRANCO)
+    return ds <= TOL_PRATA and ds < dp and ds < db
+
+def detecta_prata():
+    global contador_prata
+    quantidade = 0
+    if e_prata(sensor_esq):
+        quantidade += 1
+    if e_prata(sensor_meio):
+        quantidade += 1
+    if e_prata(sensor_dir):
+        quantidade += 1
+    if quantidade >= 2:
+        contador_prata += 1
     else:
-        if dist < 75:
-            andar.turn(80)
-            ultimo_dist = ultra.distance()
-            while dist <= ultimo_dist:
-                ultimo_dist = ultra.distance()
-                motor_esq.run(-100)
-                motor_dir.run(100)
-                wait(10)
-                dist = ultra.distance()
-                if dist > 300: dist = 300
-                if ultimo_dist > 300: ultimo_dist = 300
-                if dist > (ultimo_dist + 1): dist = ultimo_dist
-                print("distância: {}, ultima: {}".format(dist, ultimo_dist))
-            andar.turn(100)
-            andar.straight(200)
-            andar.turn(-110)
-            andar.straight(400)
-            andar.turn(-110)
-            andar.straight(210)
-            andar.turn(-115)
-            motor_esq.run(-100)
-            motor_dir.run(100)
-            wait(2500)
-            meio = cormeio.reflection()
-            while meio > 80:
-                motor_esq.run(-100)
-                motor_dir.run(100)
-                meio = cormeio.reflection()
-            integral = 0
-            erro_anterior = 0
-        else:
-            if esq_e_verde and dir_e_verde or esq == Color.GREEN and dir == Color.GREEN:
-                andar.turn(-200)
-                andar.straight(50)
-            elif esq_e_verde or esq == Color.GREEN:
-                if dirpreto == False or esqpreto == False:
-                    while esq != Color.WHITE:
-                        motor_esq.run(-50)
-                        motor_dir.run(0)
-                        esq = coresq.color()
-                    andar.straight(15)
-                    dir = cordir.color()
-                    wait(100)
-                    if dir == Color.GREEN:
-                        andar.turn(-200)
-                        andar.straight(50)
-                    else:
-                        andar.straight(30)
-                        andar.turn(-90)
-                        andar.straight(50)
-                elif esqpreto == True or dirpreto == True:
-                    andar.straight(50)
-                    dirpreto = False
-                    esqpreto = False
-            elif dir_e_verde or dir == Color.GREEN:
-                if dirpreto == False or esqpreto == False:
-                    while dir != Color.WHITE:
-                        motor_esq.run(0)
-                        motor_dir.run(-50)
-                        dir = cordir.color()
-                    andar.straight(15)
-                    esq = coresq.color()
-                    wait(100)
-                    if esq == Color.GREEN:
-                        andar.turn(-200)
-                        andar.straight(50)
-                    else:
-                        andar.straight(30)
-                        andar.turn(90)
-                        andar.straight(50)
-                    dirpreto = False
-                elif esqpreto == True or dirpreto == True:
-                    andar.straight(50)
-                    dirpreto = False
-                    esqpreto = False
-            else:
-                if esq == Color.WHITE and meio > 50 and dir == Color.WHITE:
-                    motor_esq.run(vel)
-                    motor_dir.run(vel)
-                    wait(200)
-                elif dir == Color.BLACK and esq == Color.BLACK:
-                    motor_esq.run(vel)
-                    motor_dir.run(vel)
-                    dirpreto = True
-                    esqpreto = True
-                    wait(500)
-                else:
-                    erro = reflection - meio
-                    integral = integral + erro
-                    if integral > 100: integral = 100
-                    if integral < -100: integral = -100
-                    derivada = erro - erro_anterior
-                    correcao = (kp * erro) + (ki * integral) + (kd * derivada)
-                    if correcao > 300: correcao = 300
-                    elif correcao < -300: correcao = -300
-                    if dir == Color.BLACK and dir != Color.GREEN:
-                        dirpreto = True
-                        while meio > 25 and esq != Color.BLACK:
-                            motor_esq.run(100)
-                            motor_dir.run(-125)
-                            meio = cormeio.reflection()
-                            esq = coresq.color()
-                            wait(20)
-                        if meio < 25 and dir == Color.BLACK:
-                            omnitrix.reset()
-                            while meio < 25 and tempo < 1000:
-                                motor_esq.run(100)
-                                motor_dir.run(100)
-                                meio = cormeio.reflection()
-                                tempo = omnitrix.time()
-                                wait(20)
-                            while meio > 25:
-                                motor_esq.run(125)
-                                motor_dir.run(-100)
-                                meio = cormeio.reflection()
-                                esq = coresq.color
-                                wait(20)
-                            wait(20)
-                    elif esq == Color.BLACK and esq != Color.GREEN:
-                        esqpreto = True
-                        while meio > 25 and dir != Color.BLACK:
-                            motor_esq.run(-125)
-                            motor_dir.run(100)
-                            meio = cormeio.reflection()
-                            dir = cordir.color()
-                        if meio < 25 and esq == Color.BLACK:
-                            omnitrix.reset()
-                            while meio < 25 and tempo < 1000:
-                                motor_esq.run(100)
-                                motor_dir.run(100)
-                                meio = cormeio.reflection()
-                                tempo = omnitrix.time()
-                                wait(20)
-                            while meio > 25:
-                                motor_esq.run(-100)
-                                motor_dir.run(100)
-                                meio = cormeio.reflection()
-                                dir = cordir.color()
-                                wait(20)
-                            wait(20)
-                    motor_esq.run(vel + correcao)
-                    motor_dir.run(vel - correcao) 
-                    erro_anterior = erro
-                    dirpreto = False
-                    esqpreto = False
-    print(hsv_esq.h, hsv_esq.s, hsv_esq.v, hsv_dir.h, hsv_dir.s, hsv_dir.v, meio)
-    wait(20)
-    
+        contador_prata = 0
+    if contador_prata >= CONFIRMACOES_PRATA:
+
+        contador_prata = 0
+        return True
+
+    return False
+
+def seguir_linha():
+    global integral
+    global erro_anterior
+    meio = sensor_meio.reflection()
+    erro = REFLEXAO - meio
+    integral += erro
+    if integral > 100:
+        integral = 100
+    if integral < -100:
+        integral = -100
+    derivada = erro - erro_anterior
+    correcao = (
+        KP * erro
+        +
+        KI * integral
+        +
+        KD * derivada
+    )
+    if correcao > 300:
+        correcao = 300
+    if correcao < -300:
+        correcao = -300
+    motor_esq.run(VEL + correcao)
+    motor_dir.run(VEL - correcao)
+    erro_anterior = erro
+
+
+def enviar_ultra():
+    if timer_comunicacao.time() < 100:
+        return
+    distancia = ultra.distance()
+    if distancia > 2000:
+        distancia = 2000
+    enviar("U", distancia)
+    timer_comunicacao.reset()
+
+hub.imu.reset_heading(0)
+hub.light.on(Color.BLUE)
+enviar("BOOT", 1)
+while True:
+    msg = receber()
+    if msg is not None:
+        evento = msg[0]
+        if evento == "OK":
+            estado = "RESGATE"
+        elif evento == "FALHA":
+            estado = "LINHA"
+        elif evento == "CONTINUE":
+            estado = "LINHA"
+        elif evento == "FINAL":
+            estado = "LINHA"
+    enviar_ultra()
+
+    if estado == "LINHA":
+        seguir_linha()
+        if detecta_prata():
+            andar.stop()
+            enviar("PRATA", 1)
+            estado = "ESPERANDO"
+
+    elif estado == "ESPERANDO":
+        andar.stop()
+        enviar_ultra()
+
+    elif estado == "RESGATE":
+        andar.stop()
+        enviar("RESGATE", 1)
+    wait(10)
