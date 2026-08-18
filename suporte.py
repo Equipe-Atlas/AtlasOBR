@@ -53,22 +53,11 @@ while True:
     esq = coresq.color()
     dir = cordir.color()
     meio = cormeio.reflection()
-<<<<<<< HEAD:limparoda.py
     arfagem, rolagem = hub.imu.tilt()
     arfagem = arfagem + 3.6
     hsv_esq = coresq.hsv()
     hsv_meio = cormeio.hsv()
     hsv_dir = cordir.hsv() 
     wait(20)
-    print(hsv_esq.h, hsv_esq.s, hsv_esq.v, hsv_dir.h, hsv_dir.s, hsv_dir.v) 
+    print(hsv_esq.h, hsv_esq.s, hsv_esq.v) 
     
-=======
-    if esq_e_verde or dir_e_verde:
-        hub.light.on(Color.GREEN)
-    else:
-        hub.light.on(Color.RED)
-    print("H: {}, S: {}, V: {}".format(coresq.hsv().h, coresq.hsv().s, coresq.hsv().v))
-    motor_esq.run(1200)
-    motor_dir.run(1200)
-    
->>>>>>> 5af59a54a5629886cbf7880d02cd7bdce8c9e835:suporte.py
