@@ -1,65 +1,64 @@
-from pybricks.hubs import PrimeHub
-from pybricks.pupdevices import Motor, UltrasonicSensor, ColorSensor
-from pybricks.parameters import Color, Port, Direction
-from pybricks.tools import wait, StopWatch
-from pybricks.robotics import DriveBase
+from pybricks.hubs import PrimeHub                                  #
+from pybricks.pupdevices import Motor, UltrasonicSensor, ColorSensor#
+from pybricks.parameters import Color, Port, Direction              #   biliotecas
+from pybricks.tools import wait, StopWatch                          #
+from pybricks.robotics import DriveBase                             #
 
-hub = PrimeHub(broadcast_channel=1, observe_channels=[2])
+hub = PrimeHub(broadcast_channel=1, observe_channels=[2]) # definição do hub e dos canais
 
-ultra = UltrasonicSensor(Port.C)
-cordir = ColorSensor(Port.B)
-cormeio = ColorSensor(Port.A)
-coresq = ColorSensor(Port.D)
+ultra = UltrasonicSensor(Port.C)                                        #
+cordir = ColorSensor(Port.B)                                            #
+cormeio = ColorSensor(Port.A)                                           # declaração de motores e sensores
+coresq = ColorSensor(Port.D)                                            #
+motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)#
+motor_dir = Motor(Port.E)                                               #
 
-motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)
-motor_dir = Motor(Port.E)
+andar = DriveBase(motor_esq, motor_dir, 63, 133)                                                   #
+andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)# definição da função andar
 
-andar = DriveBase(motor_esq, motor_dir, 63, 133)
-andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)
+Color.SILVER = Color(h=0, s=0, v=75)                                                #
+Color.BLACK = Color(h=240 < 180, s=100 < 10, v=50 < 10)                             #
+cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.RED)# definição das cores que o robo pode ler
+cordir.detectable_colors(cores)                                                     #  
+coresq.detectable_colors(cores)                                                     #
 
-Color.SILVER = Color(h=0, s=0, v=75)
-Color.BLACK = Color(h=240 < 180, s=100 < 10, v=30 < 10)
-cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.RED)
-cordir.detectable_colors(cores)
-coresq.detectable_colors(cores)
+omnitrix = StopWatch() # declaração da função para contar tempo
 
-omnitrix = StopWatch()
-
-reflection = 36  
-vel = 150       
-kp = 4
-ki = 0.05
-kd = 20
-integral = 0
-erro_anterior = 0
-ultimo_dist = 0
-ultima_arfagem = 0
-dirpreto = False
-esqpreto = False
+reflection = 36    #
+vel = 150          #
+kp = 4             #
+ki = 0.05          #
+kd = 20            #
+integral = 0       # declaração das variaveis
+erro_anterior = 0  #
+ultimo_dist = 0    #
+ultima_arfagem = 0 #
+dirpreto = False   #
+esqpreto = False   #
 tempo = 0
 
-def mapeia_verde(sensor):
-    dados = sensor.hsv()
-    if (160 <= dados.h <= 200) and (dados.s > 30) and (50 <= dados.v <= 100):
-        return True
-    return False
+def mapeia_verde(sensor):                                                     #
+    dados = sensor.hsv()                                                      #
+    if (160 <= dados.h <= 200) and (dados.s > 40) and (50 <= dados.v <= 100): # função ler verde
+        return True                                                           #
+    return False                                                              #
 
-hub.imu.reset_heading(0)
+hub.imu.reset_heading(0) # reinicia a guinada
 
-hub.light.on(Color.BLUE)
+hub.light.on(Color.BLUE) # liga a luz azul no hub
 
-while True:
-    esq_e_verde = mapeia_verde(coresq)
-    dir_e_verde = mapeia_verde(cordir)
-    dist = ultra.distance()
-    esq = coresq.color()
-    dir = cordir.color()
-    meio = cormeio.reflection()
-    arfagem, rolagem = hub.imu.tilt()
-    arfagem = arfagem + 3.6
-    hsv_esq = coresq.hsv()
-    hsv_meio = cormeio.hsv()
-    hsv_dir = cordir.hsv()
+while True: # laço de repetição infinito
+    esq_e_verde = mapeia_verde(coresq)  #
+    dir_e_verde = mapeia_verde(cordir)  #
+    dist = ultra.distance()             #
+    esq = coresq.color()                #
+    dir = cordir.color()                #
+    meio = cormeio.reflection()         # leitura de sensores
+    arfagem, rolagem = hub.imu.tilt()   #
+    arfagem = arfagem + 3.6             #
+    hsv_esq = coresq.hsv()              #
+    hsv_meio = cormeio.hsv()            #
+    hsv_dir = cordir.hsv()              #
     if arfagem > 3 or arfagem < -3:
         ultima_arfagem = arfagem
         motor_esq.run(200)
@@ -155,10 +154,10 @@ while True:
                     dirpreto = False
                     esqpreto = False
             else:
-                if esq == Color.WHITE and meio > 90 and dir == Color.WHITE:
+                if esq == Color.WHITE and meio > 50 and dir == Color.WHITE:
                     motor_esq.run(vel)
                     motor_dir.run(vel)
-                    wait(100)
+                    wait(200)
                 elif dir == Color.BLACK and esq == Color.BLACK:
                     motor_esq.run(vel)
                     motor_dir.run(vel)
@@ -174,22 +173,29 @@ while True:
                     correcao = (kp * erro) + (ki * integral) + (kd * derivada)
                     if correcao > 300: correcao = 300
                     elif correcao < -300: correcao = -300
-                    if dir == Color.BLACK and dir != Color.GREEN and meio > 25:
+                    if dir == Color.BLACK and dir != Color.GREEN:
                         dirpreto = True
                         while meio > 25:
                             motor_esq.run(100)
                             motor_dir.run(-125)
                             meio = cormeio.reflection()
                             esq = coresq.color()
-                            if esq == Color.BLACK:
-                                while meio > 25:
-                                    motor_esq.run(-125)
+                            if esq == Color.BLACK and meio < 25:
+                                andar.straight(20)
+                                dir = cordir.color()
+                                while dir != Color.BLACK:
+                                    motor_esq.run(-100)
                                     motor_dir.run(100)
+                                    dir = cordir.color()
+                                    wait(20)
+                            elif esq == Color.BLACK:
+                                while meio > 25:
+                                    motor_esq.run(-100)
+                                    motor_dir.run(125)
                                     meio = cormeio.reflection()
                                     wait(20)
-                        if esq_e_verde or dir_e_verde or esq == Color.GREEN or dir == Color.GREEN:
-                            andar.straight(40)
-                    elif esq == Color.BLACK and esq != Color.GREEN and meio > 25:
+                            wait(20)
+                    elif esq == Color.BLACK and esq != Color.GREEN:
                         esqpreto = True
                         while meio > 25:
                             motor_esq.run(-125)
@@ -198,18 +204,16 @@ while True:
                             dir = cordir.color()
                             if dir == Color.BLACK:
                                 while meio > 25:
-                                    motor_esq.run(100)
-                                    motor_dir.run(-125)
+                                    motor_esq.run(125)
+                                    motor_dir.run(-100)
                                     meio = cormeio.reflection()
                                     wait(20)
                             wait(20)
-                        if esq_e_verde or dir_e_verde or esq == Color.GREEN or dir == Color.GREEN:
-                            andar.straight(40)
                     motor_esq.run(vel + correcao)
                     motor_dir.run(vel - correcao) 
                     erro_anterior = erro
                     dirpreto = False
                     esqpreto = False
-    print(hsv_esq.h, hsv_esq.s, hsv_esq.v, hsv_dir.h, hsv_dir.s, hsv_dir.v)
+    print(hsv_esq.h, hsv_esq.s, hsv_esq.v, hsv_dir.h, hsv_dir.s, hsv_dir.v, meio)
     wait(20)
     
