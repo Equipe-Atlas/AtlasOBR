@@ -60,4 +60,3 @@ while True:
     hsv_dir = cordir.hsv() 
     wait(20)
     print(hsv_esq.h, hsv_esq.s, hsv_esq.v) 
-    
