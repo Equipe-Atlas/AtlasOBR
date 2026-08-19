@@ -175,49 +175,50 @@ while True: # laço de repetição infinito
                     elif correcao < -300: correcao = -300
                     if dir == Color.BLACK and dir != Color.GREEN:
                         dirpreto = True
-                        while meio > 25 and esq != Color.BLACK:
-                            motor_esq.run(100)
-                            motor_dir.run(-125)
+                        andar.straight(20)
+                        meio = cormeio.reflection()
+                        wait(20)
+                        if meio < 40:
+                            andar.straight(30)
                             meio = cormeio.reflection()
-                            esq = coresq.color()
                             wait(20)
-                        if meio < 25 and dir == Color.BLACK:
-                            omnitrix.reset()
-                            while meio < 25 and tempo < 1000:
-                                motor_esq.run(100)
-                                motor_dir.run(100)
-                                meio = cormeio.reflection()
-                                tempo = omnitrix.time()
+                            if meio < 40:
                                 wait(20)
-                            while meio > 25:
-                                motor_esq.run(125)
+                            else:
+                                while meio > 40:
+                                    motor_esq.run(100)
+                                    motor_dir.run(-100)
+                                    meio = cormeio.reflection()
+                                    wait(20)
+                        else:
+                            while meio > 40:
+                                motor_esq.run(0)
                                 motor_dir.run(-100)
                                 meio = cormeio.reflection()
-                                esq = coresq.color
                                 wait(20)
-                            wait(20)
                     elif esq == Color.BLACK and esq != Color.GREEN:
                         esqpreto = True
-                        while meio > 25 and dir != Color.BLACK:
-                            motor_esq.run(-125)
-                            motor_dir.run(100)
+                        andar.straight(20)
+                        meio = cormeio.reflection()
+                        wait(20)
+                        if meio < 40:
+                            andar.straight(30)
                             meio = cormeio.reflection()
-                            dir = cordir.color()
-                        if meio < 25 and esq == Color.BLACK:
-                            omnitrix.reset()
-                            while meio < 25 and tempo < 1000:
-                                motor_esq.run(100)
-                                motor_dir.run(100)
-                                meio = cormeio.reflection()
-                                tempo = omnitrix.time()
-                                wait(20)
-                            while meio > 25:
-                                motor_esq.run(-100)
-                                motor_dir.run(100)
-                                meio = cormeio.reflection()
-                                dir = cordir.color()
-                                wait(20)
                             wait(20)
+                            if meio < 40:
+                                wait(20)
+                            else:
+                                while meio > 40:
+                                    motor_esq.run(-100)
+                                    motor_dir.run(100)
+                                    meio = cormeio.reflection()
+                                    wait(20)
+                        else:
+                            while meio > 40:
+                                motor_esq.run(-100)
+                                motor_dir.run(0)
+                                meio = cormeio.reflection()
+                                wait(20)
                     motor_esq.run(vel + correcao)
                     motor_dir.run(vel - correcao) 
                     erro_anterior = erro
