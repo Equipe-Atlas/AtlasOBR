@@ -4,7 +4,15 @@ from pybricks.parameters import Color, Port, Direction              #   biliotec
 from pybricks.tools import wait, StopWatch                          #
 from pybricks.robotics import DriveBase                             #
 
-hub = PrimeHub(broadcast_channel=1, observe_channels=[2]) # definição do hub e dos canais
+hub = PrimeHub(broadcast_channel=1, observe_channels=[2])
+
+# mesmos códigos usados no hub da área de resgate
+COD_ENTROU_CANTO = 100   # área de resgate avisou que parou num canto
+COD_SAIDA_ESQ = 201      # achou a abertura à esquerda
+COD_SAIDA_FRENTE = 202   # achou a abertura na frente
+COD_SAIDA_DIR = 203      # achou a abertura à direita
+COD_PRECISA_GIRAR = 209  # não achou abertura, pede pra girar um pouco e a área de resgate confere de novo
+COD_LIBERA = 10000       # área de resgate terminou, devolve o controle
 
 ultra = UltrasonicSensor(Port.C)                                        #
 cordir = ColorSensor(Port.B)                                            #
@@ -13,8 +21,8 @@ coresq = ColorSensor(Port.D)                                            #
 motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)#
 motor_dir = Motor(Port.E)                                               #
 
-andar = DriveBase(motor_esq, motor_dir, 63, 133)                                                   #
-andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)# definição da função andar
+andar = DriveBase(motor_esq, motor_dir, 63, 133)
+andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)
 
 Color.SILVER = Color(h=0, s=0, v=75)                                                #
 Color.BLACK = Color(h=240 < 180, s=100 < 10, v=50 < 10)                             #
@@ -22,7 +30,7 @@ cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.
 cordir.detectable_colors(cores)                                                     #  
 coresq.detectable_colors(cores)                                                     #
 
-omnitrix = StopWatch() # declaração da função para contar tempo
+omnitrix = StopWatch()
 
 reflection = 36    #
 vel = 150          #
@@ -43,14 +51,15 @@ def mapeia_verde(sensor):                                                     #
         return True                                                           #
     return False                                                              #
 
-hub.imu.reset_heading(0) # reinicia a guinada
+hub.imu.reset_heading(0)
 
-hub.light.on(Color.BLUE) # liga a luz azul no hub
+hub.light.on(Color.BLUE)
 
-while True: # laço de repetição infinito
+while True:
     esq_e_verde = mapeia_verde(coresq)  #
     dir_e_verde = mapeia_verde(cordir)  #
     dist = ultra.distance()             #
+    hub.ble.broadcast(dist)             # NOVO: manda a leitura da frente pro hub da área de resgate
     esq = coresq.color()                #
     dir = cordir.color()                #
     meio = cormeio.reflection()         # leitura de sensores
@@ -79,9 +88,23 @@ while True: # laço de repetição infinito
             andar.stop()
             wait(999999)
     else:
-        if mensagem == 100:
-            while mensagem != 10000:
+        if mensagem == COD_ENTROU_CANTO:
+            andar.stop()  #o robô fica parado enquanto espera
+            ultima_mensagem_tratada = None
+            while True:
                 mensagem = hub.ble.observe(2)
+                if mensagem == COD_LIBERA:
+                    break
+                elif mensagem != ultima_mensagem_tratada:
+                    if mensagem == COD_SAIDA_ESQ:
+                        andar.turn(-90)
+                    elif mensagem == COD_SAIDA_FRENTE:
+                        andar.straight(100)
+                    elif mensagem == COD_SAIDA_DIR:
+                        andar.turn(90)
+                    elif mensagem == COD_PRECISA_GIRAR:
+                        andar.turn(30)
+                    ultima_mensagem_tratada = mensagem
                 wait(20)
         else:
             if dist < 75:
@@ -250,4 +273,3 @@ while True: # laço de repetição infinito
                         esqpreto = False
     print(hsv_esq.h, hsv_esq.s, hsv_esq.v, hsv_dir.h, hsv_dir.s, hsv_dir.v, meio)
     wait(20)
-    
