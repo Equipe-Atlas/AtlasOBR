@@ -151,3 +151,4 @@ while True:
         enviar("FINAL", 1)
         wait(100)
     wait(10)
+    #meu deus

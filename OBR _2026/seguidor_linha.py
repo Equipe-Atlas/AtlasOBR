@@ -23,7 +23,6 @@ andar = DriveBase(
     63,
     133
 )
-
 andar.settings(
     straight_speed=100,
     straight_acceleration=300,
