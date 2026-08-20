@@ -3,27 +3,35 @@ from pybricks.pupdevices import Motor, UltrasonicSensor, ColorSensor#
 from pybricks.parameters import Color, Port, Direction              #   biliotecas
 from pybricks.tools import wait, StopWatch                          #
 from pybricks.robotics import DriveBase                             #
- 
+
 hub = PrimeHub(broadcast_channel=1, observe_channels=[2]) # definição do hub e dos canais
- 
+
+# mesmos códigos usados no hub da área de resgate
+COD_ENTROU_CANTO = 100   # área de resgate avisou que parou num canto
+COD_SAIDA_ESQ = 201      # achou a abertura à esquerda
+COD_SAIDA_FRENTE = 202   # achou a abertura na frente
+COD_SAIDA_DIR = 203      # achou a abertura à direita
+COD_PRECISA_GIRAR = 209  # não achou abertura, pede pra girar um pouco e a área de resgate confere de novo
+COD_LIBERA = 10000       # área de resgate terminou, devolve o controle
+
 ultra = UltrasonicSensor(Port.C)                                        #
 cordir = ColorSensor(Port.B)                                            #
 cormeio = ColorSensor(Port.A)                                           # declaração de motores e sensores
 coresq = ColorSensor(Port.D)                                            #
 motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)#
 motor_dir = Motor(Port.E)                                               #
- 
+
 andar = DriveBase(motor_esq, motor_dir, 63, 133)                                                   #
 andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)# definição da função andar
- 
+
 Color.SILVER = Color(h=0, s=0, v=75)                                                #
 Color.BLACK = Color(h=240 < 180, s=100 < 10, v=50 < 10)                             #
 cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.RED)# definição das cores que o robo pode ler
 cordir.detectable_colors(cores)                                                     #  
 coresq.detectable_colors(cores)                                                     #
- 
+
 omnitrix = StopWatch() # declaração da função para contar tempo
- 
+
 reflection = 36    #
 vel = 150          #
 kp = 4             #
@@ -36,17 +44,17 @@ ultima_arfagem = 0 #
 dirpreto = False   #
 esqpreto = False   #
 tempo = 0
- 
+
 def mapeia_verde(sensor):                                                     #
     dados = sensor.hsv()                                                      #
     if (160 <= dados.h <= 200) and (dados.s > 40) and (50 <= dados.v <= 100): # função ler verde
         return True                                                           #
     return False                                                              #
- 
+
 hub.imu.reset_heading(0) # reinicia a guinada
- 
+
 hub.light.on(Color.BLUE) # liga a luz azul no hub
- 
+
 while True: # laço de repetição infinito
     esq_e_verde = mapeia_verde(coresq)  #
     dir_e_verde = mapeia_verde(cordir)  #
@@ -80,9 +88,23 @@ while True: # laço de repetição infinito
             andar.stop()
             wait(999999)
     else:
-        if mensagem == 100:
-            while mensagem != 10000:
+        if mensagem == COD_ENTROU_CANTO:
+            andar.stop()  #o robô fica parado enquanto espera
+            ultima_mensagem_tratada = None
+            while True:
                 mensagem = hub.ble.observe(2)
+                if mensagem == COD_LIBERA:
+                    break
+                elif mensagem != ultima_mensagem_tratada:
+                    if mensagem == COD_SAIDA_ESQ:
+                        andar.turn(-90)
+                    elif mensagem == COD_SAIDA_FRENTE:
+                        andar.straight(100)
+                    elif mensagem == COD_SAIDA_DIR:
+                        andar.turn(90)
+                    elif mensagem == COD_PRECISA_GIRAR:
+                        andar.turn(30)
+                    ultima_mensagem_tratada = mensagem
                 wait(20)
         else:
             if dist < 75:
