@@ -95,5 +95,6 @@ def varredura_normal():
         hub.ble.broadcast(COD_GIRA_90)
         wait(TEMPO_GIRO)
 while True:
-    varredura_normal()
+    if varredura_normal():
+        print("Está em saida")
     wait(20)
