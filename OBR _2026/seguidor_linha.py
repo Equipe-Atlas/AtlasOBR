@@ -4,7 +4,7 @@ from pybricks.parameters import Color, Port, Direction              #   biliotec
 from pybricks.tools import wait, StopWatch                          #
 from pybricks.robotics import DriveBase                             #
 
-hub = PrimeHub(broadcast_channel=1, observe_channels=[2]) # definição do hub e dos canais
+hub = PrimeHub(broadcast_channel=1, observe_channels=[2])
 
 # mesmos códigos usados no hub da área de resgate
 COD_ENTROU_CANTO = 100   # área de resgate avisou que parou num canto
@@ -21,8 +21,8 @@ coresq = ColorSensor(Port.D)                                            #
 motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)#
 motor_dir = Motor(Port.E)                                               #
 
-andar = DriveBase(motor_esq, motor_dir, 63, 133)                                                   #
-andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)# definição da função andar
+andar = DriveBase(motor_esq, motor_dir, 63, 133)
+andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)
 
 Color.SILVER = Color(h=0, s=0, v=75)                                                #
 Color.BLACK = Color(h=240 < 180, s=100 < 10, v=50 < 10)                             #
@@ -30,7 +30,7 @@ cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.
 cordir.detectable_colors(cores)                                                     #  
 coresq.detectable_colors(cores)                                                     #
 
-omnitrix = StopWatch() # declaração da função para contar tempo
+omnitrix = StopWatch()
 
 reflection = 36    #
 vel = 150          #
@@ -51,11 +51,11 @@ def mapeia_verde(sensor):                                                     #
         return True                                                           #
     return False                                                              #
 
-hub.imu.reset_heading(0) # reinicia a guinada
+hub.imu.reset_heading(0)
 
-hub.light.on(Color.BLUE) # liga a luz azul no hub
+hub.light.on(Color.BLUE)
 
-while True: # laço de repetição infinito
+while True:
     esq_e_verde = mapeia_verde(coresq)  #
     dir_e_verde = mapeia_verde(cordir)  #
     dist = ultra.distance()             #
