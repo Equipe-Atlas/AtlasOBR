@@ -3,27 +3,27 @@ from pybricks.pupdevices import Motor, UltrasonicSensor, ColorSensor#
 from pybricks.parameters import Color, Port, Direction              #   biliotecas
 from pybricks.tools import wait, StopWatch                          #
 from pybricks.robotics import DriveBase                             #
-
+ 
 hub = PrimeHub(broadcast_channel=1, observe_channels=[2]) # definição do hub e dos canais
-
+ 
 ultra = UltrasonicSensor(Port.C)                                        #
 cordir = ColorSensor(Port.B)                                            #
 cormeio = ColorSensor(Port.A)                                           # declaração de motores e sensores
 coresq = ColorSensor(Port.D)                                            #
 motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)#
 motor_dir = Motor(Port.E)                                               #
-
+ 
 andar = DriveBase(motor_esq, motor_dir, 63, 133)                                                   #
 andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)# definição da função andar
-
+ 
 Color.SILVER = Color(h=0, s=0, v=75)                                                #
 Color.BLACK = Color(h=240 < 180, s=100 < 10, v=50 < 10)                             #
 cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.RED)# definição das cores que o robo pode ler
 cordir.detectable_colors(cores)                                                     #  
 coresq.detectable_colors(cores)                                                     #
-
+ 
 omnitrix = StopWatch() # declaração da função para contar tempo
-
+ 
 reflection = 36    #
 vel = 150          #
 kp = 4             #
@@ -36,21 +36,22 @@ ultima_arfagem = 0 #
 dirpreto = False   #
 esqpreto = False   #
 tempo = 0
-
+ 
 def mapeia_verde(sensor):                                                     #
     dados = sensor.hsv()                                                      #
     if (160 <= dados.h <= 200) and (dados.s > 40) and (50 <= dados.v <= 100): # função ler verde
         return True                                                           #
     return False                                                              #
-
+ 
 hub.imu.reset_heading(0) # reinicia a guinada
-
+ 
 hub.light.on(Color.BLUE) # liga a luz azul no hub
-
+ 
 while True: # laço de repetição infinito
     esq_e_verde = mapeia_verde(coresq)  #
     dir_e_verde = mapeia_verde(cordir)  #
     dist = ultra.distance()             #
+    hub.ble.broadcast(dist)             # NOVO: manda a leitura da frente pro hub da área de resgate
     esq = coresq.color()                #
     dir = cordir.color()                #
     meio = cormeio.reflection()         # leitura de sensores
@@ -190,4 +191,3 @@ while True: # laço de repetição infinito
                         esqpreto = False
     print(hsv_esq.h, hsv_esq.s, hsv_esq.v, hsv_dir.h, hsv_dir.s, hsv_dir.v, meio)
     wait(20)
-    
