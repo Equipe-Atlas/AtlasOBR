@@ -137,8 +137,9 @@ while True:
                     dist = ultra.distance()
                     if dist > 300: dist = 300
                     if ultimo_dist > 300: ultimo_dist = 300
+                    if dist > (ultimo_dist + 1): dist = ultimo_dist
                     print("distância: {}, ultima: {}".format(dist, ultimo_dist))
-                andar.turn(70)
+                andar.turn(100)
                 andar.straight(200)
                 andar.turn(-100)
                 andar.straight(400)
@@ -153,9 +154,9 @@ while True:
                     motor_esq.run(-100)
                     motor_dir.run(100)
                     meio = cormeio.reflection()
+                    wait(20)
                 integral = 0
                 erro_anterior = 0
-                na_area_resgate = True
             else:
                 if esq_e_verde and dir_e_verde or esq == Color.GREEN and dir == Color.GREEN:
                     andar.turn(-200)
