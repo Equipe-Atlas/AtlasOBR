@@ -1,100 +1,155 @@
 from pybricks.hubs import PrimeHub
 from pybricks.pupdevices import Motor, UltrasonicSensor, ColorSensor
 from pybricks.parameters import Color, Port
-from pybricks.tools import wait, StopWatch
+from pybricks.tools import wait
 
-hub = PrimeHub(broadcast_channel=2, observe_channels=[1])
-hub.light.on(Color.MAGENTA)
-cores = ColorSensor(Port.F)
+
+CANAL_PROMETEU = 1
+CANAL_ATLAS = 2
+
+hub = PrimeHub(broadcast_channel=CANAL_ATLAS,observe_channels=[CANAL_PROMETEU])
+
+sensor_cor = ColorSensor(Port.F)
 ultra_esq = UltrasonicSensor(Port.B)
 ultra_dir = UltrasonicSensor(Port.D)
+
 garra = Motor(Port.E)
 selecao = Motor(Port.C)
 descarte = Motor(Port.A)
 
-omnitrix = StopWatch()
+V_PRETO = 15
+V_PRATA = 77
+V_BRANCO = 100
+TOL_PRATA = 18
+ultra_prometeu = 2000
+sequencia = 0
+ultima_sequencia = -1
+estado = "ESPERANDO"
 
-dsaida = 110
-PASSO_QUADRADO = 200
-TEMPO_PASSO = 2500
-TEMPO_GIRO = 1200
+def enviar(tipo, valor=0):
+    global sequencia
+    sequencia += 1
+    hub.ble.broadcast((tipo, valor, sequencia))
 
-COD_ENTROU_CANTO = 100
-COD_SAIDA_ESQ = 201
-COD_SAIDA_FRENTE = 202
-COD_SAIDA_DIR = 203
-COD_PRECISA_GIRAR = 209
-COD_LIBERA = 10000
-COD_ANDA_FRENTE = 300
-COD_GIRA_90 = 301
+def receber():
+    global ultima_sequencia
+    global ultra_prometeu
 
-def em_canto():
-    return (ultra_esq.distance() + ultra_dir.distance()) < dsaida
+    msg = hub.ble.observe(CANAL_PROMETEU)
 
-def le_distancia_frente():
-    d = hub.ble.observe(1)
-    if d is None:
-        return 0
-    return d
+    if msg is None:
+        return None
+    if len(msg) >= 3:
+        if msg[2] <= ultima_sequencia:
+            return None
+        ultima_sequencia = msg[2]
+    if msg[0] == "U":
+        ultra_prometeu = msg[1]
+    return msg
 
-def verifica_saida():
-    d_esq = ultra_esq.distance()
-    d_frente = le_distancia_frente()
-    d_dir = ultra_dir.distance()
-    if d_esq > dsaida:
-        return COD_SAIDA_ESQ
-    if d_frente > dsaida:
-        return COD_SAIDA_FRENTE
-    if d_dir > dsaida:
-        return COD_SAIDA_DIR
-    return COD_PRECISA_GIRAR
+def e_prata():
+    h, s, v = sensor_cor.hsv()
+    if s > 20:
+        return False
+    dp = abs(v - V_PRETO)
+    ds = abs(v - V_PRATA)
+    db = abs(v - V_BRANCO)
+    return ds <= TOL_PRATA and ds < dp and ds < db
 
-Color.SILVER = Color(h=0, s=0, v=75)
-Color.BLACK = Color(h=240, s=100, v=50)
-Color.WHITE = Color(h=0, s=0, v=100)
-cores_ler = (Color.SILVER, Color.BLACK, Color.WHITE)
-cores.detectable_colors(cores_ler)
+def confirma_prata():
+    pontos = 0
+    for _ in range(5):
+        if e_prata():
+            pontos += 1
+        wait(10)
+    return pontos >= 3
 
-def vitima_viva(sensor):
-    dados = sensor.hsv()
-    return dados.s < 15 and dados.v > 60
+def ler_ultra(sensor):
+    total = 0
+    for _ in range(3):
+        v = sensor.distance()
+        if v > 2000:
+            v = 2000
+        total += v
+        wait(10)
+    return total // 3
 
-def vitima_morta(sensor):
-    dados = sensor.hsv()
-    return dados.v < 15
+def ambiente():
+    esq = ler_ultra(ultra_esq)
+    dire = ler_ultra(ultra_dir)
+    frente = ultra_prometeu
+    return esq, frente, dire
 
-def coleta_vitima():
-    garra.run_angle(200, 90)
-    selecao.run_angle(150, 180)
-    wait(200)
-    garra.run_angle(200, -90)
+def confirmar_area():
+    esq, frente, dire = ambiente()
+    pontos = 0
+    if confirma_prata():
+        pontos += 2
+    if esq < 300:
+        pontos += 1
+    if dire < 300:
+        pontos += 1
+    if frente < 300:
+        pontos += 1
+    print("E:", esq, "F:", frente, "D:", dire, "P:", pontos)
+    return pontos >= 3
 
-def descarta_vitima():
-    descarte.run_angle(200, 90)
-    wait(200)
-    descarte.run_angle(200, -90)
+def pegar():
+    garra.run(250)
+    while True:
+        if garra.angle() >= 0:
+            break
+        wait(10)
+    garra.stop()
 
-def varredura_normal():
-    hub.ble.broadcast(COD_ANDA_FRENTE)
-    wait(TEMPO_PASSO)
-    if vitima_viva(cores):
-        coleta_vitima()
-    elif vitima_morta(cores):
-        descarta_vitima()
-    if em_canto():
-        hub.ble.broadcast(COD_ENTROU_CANTO)
-        wait(100)
-        resultado = verifica_saida()
-        if resultado in (COD_SAIDA_ESQ, COD_SAIDA_FRENTE, COD_SAIDA_DIR):
-            hub.ble.broadcast(resultado)
-            wait(200)
-            hub.ble.broadcast(COD_LIBERA)
-            return
-        hub.ble.broadcast(COD_LIBERA)
-        wait(100)
-        hub.ble.broadcast(COD_GIRA_90)
-        wait(TEMPO_GIRO)
+def soltar():
+    garra.run(-250)
+    while True:
+        if garra.angle() <= -360:
+            break
+        wait(10)
+    garra.stop()
+
+def selecionar():
+    selecao.run_angle(300, 180, wait=True)
+
+def descartar():
+    descarte.run_angle(300, 90, wait=True)
+
+def executar_resgate():
+    enviar("RESGATE", 1)
+    pegar()
+    selecionar()
+    descartar()
+    soltar()
+    enviar("FINAL", 1)
+
+hub.light.on(Color.RED)
+
+enviar("BOOT", 1)
+
 while True:
-    if varredura_normal():
-        print("Está em saida")
-    wait(20)
+    msg = receber()
+    if estado == "ESPERANDO":
+        if msg is not None and msg[0] == "PRATA":
+            estado = "CONFIRMANDO"
+
+    elif estado == "CONFIRMANDO":
+        if confirmar_area():
+            enviar("OK", 1)
+            estado = "RESGATE"
+        else:
+            enviar("FALHA", 0)
+            estado = "ESPERANDO"
+
+    elif estado == "RESGATE":
+
+        executar_resgate()
+        estado = "FINAL"
+
+    elif estado == "FINAL":
+        enviar("FINAL", 1)
+        wait(100)
+    wait(10)
+    wait(10)
+    #meu deus'
