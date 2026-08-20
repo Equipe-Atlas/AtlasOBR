@@ -80,8 +80,9 @@ while True: # laço de repetição infinito
             wait(999999)
     else:
         if mensagem == 100:
-            andar.stop()
-            wait(9999)
+            while mensagem != 10000:
+                mensagem = hub.ble.observe(2)
+                wait(20)
         else:
             if dist < 75:
                 andar.turn(80)

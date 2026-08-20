@@ -22,8 +22,6 @@ while True:
     dist_dir = ultra_dir.distance()
     if (dist_esq + dist_dir) < 110:
         hub.ble.broadcast(100)
-        while True:
-            dist_esq = ultra_esq.distance()
-            dist_dir = ultra_dir.distance()
-    else:
-        hub.ble.broadcast(200)
+        while hub.ble.broadcast() != 10000:
+            if dist_esq < dist_dir:
+                garra.run(10)
