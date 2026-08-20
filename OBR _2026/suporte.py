@@ -59,4 +59,6 @@ while True:
     hsv_meio = cormeio.hsv()
     hsv_dir = cordir.hsv() 
     wait(20)
-    print(hsv_esq.h, hsv_esq.s, hsv_esq.v) 
+    print(hsv_esq.h, hsv_esq.s, hsv_esq.v)
+    motor_dir.run(999)
+    motor_esq.run(999) 

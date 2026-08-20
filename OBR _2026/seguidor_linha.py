@@ -69,43 +69,31 @@ while True:
     hsv_meio = cormeio.hsv()            #
     hsv_dir = cordir.hsv()
     mensagem = hub.ble.observe(2)
-    if arfagem > 3 or arfagem < -3:
-        ultima_arfagem = arfagem
-        motor_esq.run(200)
-        motor_dir.run(200)
-        wait(200)
-        arfagem, rolagem = hub.imu.tilt()
-        arfagem = arfagem + 3.6   
-        while arfagem > ultima_arfagem - 1 or arfagem < ultima_arfagem + 1:
-            ultima_arfagem = arfagem
-            motor_esq.run(200)
-            motor_dir.run(200)
-            wait(50)
+    vel = 150
+    if arfagem > 5 or arfagem < -5:
+        if arfagem > 3:
+            vel = 300
+        elif arfagem < -3:
+            vel = 150
+        hub.imu.reset_heading(0)
+        while arfagem > 3 or arfagem < -3:
+            guinada = hub.imu.heading()
             arfagem, rolagem = hub.imu.tilt()
             arfagem = arfagem + 3.6
-            print(arfagem, "      ", ultima_arfagem)
-        while arfagem > 3 or arfagem < -3:
-            andar.stop()
-            wait(999999)
+            esq = coresq.color()
+            dir = cordir.color()
+            ad = 0
+            ae = 0
+            if dir == Color.BLACK: ae = 200
+            elif esq == Color.BLACK: ad = 200
+            motor_esq.run(guinada * -10 + vel + ae)
+            motor_dir.run(guinada * 10 + vel + ad)
+            print (arfagem)
+            wait(20)
     else:
-        if mensagem == COD_ENTROU_CANTO:
+        if mensagem == 200:
             andar.stop()  #o robô fica parado enquanto espera
-            ultima_mensagem_tratada = None
-            while True:
-                mensagem = hub.ble.observe(2)
-                if mensagem == COD_LIBERA:
-                    break
-                elif mensagem != ultima_mensagem_tratada:
-                    if mensagem == COD_SAIDA_ESQ:
-                        andar.turn(-90)
-                    elif mensagem == COD_SAIDA_FRENTE:
-                        andar.straight(100)
-                    elif mensagem == COD_SAIDA_DIR:
-                        andar.turn(90)
-                    elif mensagem == COD_PRECISA_GIRAR:
-                        andar.turn(30)
-                    ultima_mensagem_tratada = mensagem
-                wait(20)
+            wait(99999)
         else:
             if dist < 75:
                 andar.turn(80)
