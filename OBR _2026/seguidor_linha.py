@@ -6,13 +6,15 @@ from pybricks.robotics import DriveBase                             #
 
 hub = PrimeHub(broadcast_channel=1, observe_channels=[2])
 
-# mesmos códigos usados no hub da área de resgate
-COD_ENTROU_CANTO = 100   # área de resgate avisou que parou num canto
-COD_SAIDA_ESQ = 201      # achou a abertura à esquerda
-COD_SAIDA_FRENTE = 202   # achou a abertura na frente
-COD_SAIDA_DIR = 203      # achou a abertura à direita
-COD_PRECISA_GIRAR = 209  # não achou abertura, pede pra girar um pouco e a área de resgate confere de novo
-COD_LIBERA = 10000       # área de resgate terminou, devolve o controle
+COD_ENTROU_CANTO = 100
+COD_SAIDA_ESQ = 201      
+COD_SAIDA_FRENTE = 202   
+COD_SAIDA_DIR = 203      
+COD_PRECISA_GIRAR = 209  
+COD_LIBERA = 10000       
+COD_ANDA_FRENTE = 300    
+COD_GIRA_90 = 301        
+PASSO_QUADRADO = 200     
 
 ultra = UltrasonicSensor(Port.C)                                        #
 cordir = ColorSensor(Port.B)                                            #
@@ -44,7 +46,8 @@ ultima_arfagem = 0 #
 dirpreto = False   #
 esqpreto = False   #
 tempo = 0
-
+na_area_resgate = False        # NOVO
+ultimo_comando_resgate = None  # NOVO
 def mapeia_verde(sensor):                                                     #
     dados = sensor.hsv()                                                      #
     if (160 <= dados.h <= 200) and (dados.s > 40) and (50 <= dados.v <= 100): # função ler verde
@@ -91,9 +94,37 @@ while True:
             print (arfagem)
             wait(20)
     else:
-        if mensagem == 200:
-            andar.stop()  #o robô fica parado enquanto espera
-            wait(99999)
+        if mensagem == COD_ENTROU_CANTO:
+            andar.stop()
+            ultima_mensagem_tratada = None
+            achou_saida = False  # NOVO
+            while True:
+                mensagem = hub.ble.observe(2)
+                if mensagem == COD_LIBERA:
+                    if achou_saida:
+                        na_area_resgate = False  # NOVO
+                    break
+                elif mensagem != ultima_mensagem_tratada:
+                    if mensagem == COD_SAIDA_ESQ:
+                        andar.turn(-90)
+                        achou_saida = True  # NOVO
+                    elif mensagem == COD_SAIDA_FRENTE:
+                        andar.straight(100)
+                        achou_saida = True  # NOVO
+                    elif mensagem == COD_SAIDA_DIR:
+                        andar.turn(90)
+                        achou_saida = True  # NOVO
+                    elif mensagem == COD_PRECISA_GIRAR:
+                        andar.turn(30)
+                    ultima_mensagem_tratada = mensagem
+                wait(20)
+        elif na_area_resgate:
+            if mensagem != ultimo_comando_resgate:
+                if mensagem == COD_ANDA_FRENTE:
+                    andar.straight(PASSO_QUADRADO)
+                elif mensagem == COD_GIRA_90:
+                    andar.turn(90)
+                ultimo_comando_resgate = mensagem
         else:
             if dist < 75:
                 andar.turn(80)
@@ -102,18 +133,17 @@ while True:
                     ultimo_dist = ultra.distance()
                     motor_esq.run(-100)
                     motor_dir.run(100)
-                    wait(10)
+                    wait(20)
                     dist = ultra.distance()
                     if dist > 300: dist = 300
                     if ultimo_dist > 300: ultimo_dist = 300
-                    if dist > (ultimo_dist + 1): dist = ultimo_dist
                     print("distância: {}, ultima: {}".format(dist, ultimo_dist))
-                andar.turn(100)
+                andar.turn(70)
                 andar.straight(200)
-                andar.turn(-110)
+                andar.turn(-100)
                 andar.straight(400)
-                andar.turn(-110)
-                andar.straight(210)
+                andar.turn(-100)
+                andar.straight(200)
                 andar.turn(-115)
                 motor_esq.run(-100)
                 motor_dir.run(100)
@@ -125,6 +155,7 @@ while True:
                     meio = cormeio.reflection()
                 integral = 0
                 erro_anterior = 0
+                na_area_resgate = True
             else:
                 if esq_e_verde and dir_e_verde or esq == Color.GREEN and dir == Color.GREEN:
                     andar.turn(-200)
