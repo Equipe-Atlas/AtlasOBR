@@ -131,9 +131,9 @@ while True: # laço de repetição infinito
                             andar.turn(-200)
                             andar.straight(50)
                         else:
-                            andar.straight(30)
+                            andar.straight(40)
                             andar.turn(-90)
-                            andar.straight(50)
+                            andar.straight(40)
                     elif esqpreto == True or dirpreto == True:
                         andar.straight(50)
                         dirpreto = False
@@ -151,9 +151,9 @@ while True: # laço de repetição infinito
                             andar.turn(-200)
                             andar.straight(50)
                         else:
-                            andar.straight(30)
+                            andar.straight(40)
                             andar.turn(90)
-                            andar.straight(50)
+                            andar.straight(40)
                         dirpreto = False
                     elif esqpreto == True or dirpreto == True:
                         andar.straight(50)
@@ -181,8 +181,68 @@ while True: # laço de repetição infinito
                         elif correcao < -300: correcao = -300
                         if dir == Color.BLACK and dir != Color.GREEN:
                             dirpreto = True
+                            while meio > 25:
+                                motor_esq.run(100)
+                                motor_dir.run(-125)
+                                meio = cormeio.reflection()
+                                esq = coresq.color()
+                                if esq != Color.WHITE:
+                                    while meio > 25:
+                                        motor_esq.run(-100)
+                                        motor_dir.run(100)
+                                        meio = cormeio.reflection()
+                                        esq = coresq.color()
+                                        wait(20)
+                                wait(20)
+                            dir = cordir.color()
+                            if meio < 25 and dir == Color.BLACK:
+                                omnitrix.reset()
+                                while meio < 25 and tempo < 600:
+                                    motor_esq.run(100)
+                                    motor_dir.run(100)
+                                    meio = cormeio.reflection()
+                                    tempo = omnitrix.time()
+                                    wait(20)
+                                wait(100)
+                                while meio > 25:
+                                    motor_esq.run(100)
+                                    motor_dir.run(-150)
+                                    meio = cormeio.reflection()
+                                    esq = coresq.color
+                                    wait(20)
+                                wait(20)
                         elif esq == Color.BLACK and esq != Color.GREEN:
                             esqpreto = True
+                            while meio > 25:
+                                motor_esq.run(-125)
+                                motor_dir.run(100)
+                                meio = cormeio.reflection()
+                                dir = cordir.color()
+                                if dir != Color.WHITE:
+                                    while meio > 25:
+                                        motor_esq.run(100)
+                                        motor_dir.run(-100)
+                                        meio = cormeio.reflection()
+                                        dir = cordir.color()
+                                    wait(20)
+                                wait(20)
+                            esq = coresq.color()
+                            if meio < 25 and esq == Color.BLACK:
+                                omnitrix.reset()
+                                while meio < 25 and tempo < 600:
+                                    motor_esq.run(100)
+                                    motor_dir.run(100)
+                                    meio = cormeio.reflection()
+                                    tempo = omnitrix.time()
+                                    wait(20)
+                                wait(100)
+                                while meio > 25:
+                                    motor_esq.run(-150)
+                                    motor_dir.run(100)
+                                    meio = cormeio.reflection()
+                                    dir = cordir.color()
+                                    wait(20)
+                                wait(20)
                         motor_esq.run(vel + correcao)
                         motor_dir.run(vel - correcao) 
                         erro_anterior = erro
