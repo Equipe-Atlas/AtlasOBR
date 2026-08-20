@@ -129,6 +129,12 @@ hub.light.on(Color.RED)
 enviar("BOOT", 1)
 
 while True:
+    dist_dir = ultra_dir.distance()
+    dist_esq = ultra_esq.distance()
+    if dist_esq < dist_dir:
+        enviar(dist_esq)
+    else:
+        enviar(dist_dir)
     msg = receber()
     if estado == "ESPERANDO":
         if msg is not None and msg[0] == "PRATA":
