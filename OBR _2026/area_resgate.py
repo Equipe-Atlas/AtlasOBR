@@ -152,4 +152,3 @@ while True:
         wait(100)
     wait(10)
     wait(10)
-    #meu deus'
