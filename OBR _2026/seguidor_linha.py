@@ -163,4 +163,4 @@ while True:
     elif estado == "RESGATE":
         andar.stop()
         enviar("RESGATE", 1)
-    wait(10)
+    wait(10) 
