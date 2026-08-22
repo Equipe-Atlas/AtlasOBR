@@ -98,3 +98,4 @@ while True:
     if varredura_normal():
         print("Está em saida")
     wait(20)
+ 
