@@ -36,8 +36,8 @@ omnitrix = StopWatch()
 
 reflection = 36    #
 vel = 150          #
-kp = 8             #
-ki = 0.05          #
+kp = 5             #
+ki = 0.01          #
 kd = 20            #
 integral = 0       # declaração das variaveis
 erro_anterior = 0  #
@@ -50,7 +50,7 @@ na_area_resgate = False        # NOVO
 ultimo_comando_resgate = None  # NOVO
 def mapeia_verde(sensor):                                                     #
     dados = sensor.hsv()                                                      #
-    if (160 <= dados.h <= 200) and (dados.s > 40) and (50 <= dados.v <= 100): # função ler verde
+    if (160 <= dados.h <= 210) and (dados.s > 25) and (40 <= dados.v <= 100): # função ler verde
         return True                                                           #
     return False                                                              #
 
@@ -73,7 +73,7 @@ while True:
     hsv_dir = cordir.hsv()
     mensagem = hub.ble.observe(2)
     vel = 150
-    if arfagem > 5:
+    if arfagem > 5 or arfagem < -3:
         if arfagem > 3:
             vel = 300
         elif arfagem < -3:
@@ -96,14 +96,19 @@ while True:
         esq = coresq.color()                
         dir = cordir.color()                
         meio = cormeio.reflection()
-        if esq == Color.WHITE and meio > 50 and dir == Color.WHITE:
+        arfagem, rolagem = hub.imu.tilt()
+        arfagem = arfagem + 3.6
+        if esq == Color.WHITE and meio > 50 and dir == Color.WHITE and arfagem > 0:
             while meio > 80:
                 motor_esq.run(-150)
                 motor_dir.run(-150)
                 wait(20) 
-        while arfagem < -5 and arfagem > - 10:
-            motor_esq.run(150)
+        while arfagem < -3 and arfagem > - 7:
+            motor_esq.run(0)
             motor_dir.run(150)
+            arfagem, rolagem = hub.imu.tilt()
+            arfagem = arfagem + 3.6
+            print(arfagem)
             wait(20)
     else:
         if mensagem == COD_ENTROU_CANTO:
@@ -177,9 +182,9 @@ while True:
                     if dirpreto == False or esqpreto == False:
                         while esq != Color.WHITE:
                             motor_esq.run(-50)
-                            motor_dir.run(0)
+                            motor_dir.run(-50)
                             esq = coresq.color()
-                        andar.straight(15)
+                        andar.straight(20)
                         dir = cordir.color()
                         wait(100)
                         if dir == Color.GREEN or dir_e_verde:
@@ -196,12 +201,15 @@ while True:
                 elif dir_e_verde or dir == Color.GREEN:
                     if dirpreto == False or esqpreto == False:
                         while dir != Color.WHITE:
-                            motor_esq.run(0)
+                            motor_esq.run(-75)
                             motor_dir.run(-50)
                             dir = cordir.color()
-                        andar.straight(15)
+                        andar.straight(30)
                         esq = coresq.color()
-                        wait(100)
+                        wait(300)
+                        print(hsv_esq.h, hsv_esq.s, hsv_esq.v)
+                        andar.stop()
+                        wait(100999)
                         if esq == Color.GREEN or esq_e_verde:
                             andar.turn(-200)
                             andar.straight(50)
@@ -215,7 +223,7 @@ while True:
                         dirpreto = False
                         esqpreto = False
                 else:
-                    if esq == Color.WHITE and meio > 50 and dir == Color.WHITE:
+                    if esq == Color.WHITE and meio > 50 and dir == Color.WHITE :
                         motor_esq.run(vel)
                         motor_dir.run(vel)
                         wait(200)
@@ -273,7 +281,6 @@ while True:
                                 motor_dir.run(100)
                                 meio = cormeio.reflection()
                                 dir = cordir.color()
-                                print(dir, hsv_dir.h, hsv_dir.s, hsv_dir.v)
                                 if dir != Color.WHITE and dir != Color.SILVER:
                                     while meio > 25:
                                         motor_esq.run(100)
