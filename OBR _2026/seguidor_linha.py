@@ -36,7 +36,7 @@ omnitrix = StopWatch()
 
 reflection = 36    #
 vel = 150          #
-kp = 4             #
+kp = 8             #
 ki = 0.05          #
 kd = 20            #
 integral = 0       # declaração das variaveis
@@ -73,13 +73,13 @@ while True:
     hsv_dir = cordir.hsv()
     mensagem = hub.ble.observe(2)
     vel = 150
-    if arfagem > 5 or arfagem < -5:
+    if arfagem > 5:
         if arfagem > 3:
             vel = 300
         elif arfagem < -3:
             vel = 150
         hub.imu.reset_heading(0)
-        while arfagem > 3 or arfagem < -3:
+        while arfagem > 3:
             guinada = hub.imu.heading()
             arfagem, rolagem = hub.imu.tilt()
             arfagem = arfagem + 3.6
@@ -92,6 +92,18 @@ while True:
             motor_esq.run(guinada * -10 + vel + ae)
             motor_dir.run(guinada * 10 + vel + ad)
             print (arfagem)
+            wait(20)
+        esq = coresq.color()                
+        dir = cordir.color()                
+        meio = cormeio.reflection()
+        if esq == Color.WHITE and meio > 50 and dir == Color.WHITE:
+            while meio > 80:
+                motor_esq.run(-150)
+                motor_dir.run(-150)
+                wait(20) 
+        while arfagem < -5 and arfagem > - 10:
+            motor_esq.run(150)
+            motor_dir.run(150)
             wait(20)
     else:
         if mensagem == COD_ENTROU_CANTO:
@@ -170,7 +182,7 @@ while True:
                         andar.straight(15)
                         dir = cordir.color()
                         wait(100)
-                        if dir == Color.GREEN:
+                        if dir == Color.GREEN or dir_e_verde:
                             andar.turn(-200)
                             andar.straight(50)
                         else:
@@ -190,7 +202,7 @@ while True:
                         andar.straight(15)
                         esq = coresq.color()
                         wait(100)
-                        if esq == Color.GREEN:
+                        if esq == Color.GREEN or esq_e_verde:
                             andar.turn(-200)
                             andar.straight(50)
                         else:
@@ -229,7 +241,7 @@ while True:
                                 motor_dir.run(-125)
                                 meio = cormeio.reflection()
                                 esq = coresq.color()
-                                if esq != Color.WHITE:
+                                if esq != Color.WHITE and esq != Color.SILVER:
                                     while meio > 25:
                                         motor_esq.run(-100)
                                         motor_dir.run(100)
@@ -261,7 +273,8 @@ while True:
                                 motor_dir.run(100)
                                 meio = cormeio.reflection()
                                 dir = cordir.color()
-                                if dir != Color.WHITE:
+                                print(dir, hsv_dir.h, hsv_dir.s, hsv_dir.v)
+                                if dir != Color.WHITE and dir != Color.SILVER:
                                     while meio > 25:
                                         motor_esq.run(100)
                                         motor_dir.run(-100)
@@ -291,5 +304,5 @@ while True:
                         erro_anterior = erro
                         dirpreto = False
                         esqpreto = False
-    print(hsv_esq.h, hsv_esq.s, hsv_esq.v, hsv_dir.h, hsv_dir.s, hsv_dir.v, meio)
+    print("esquerda: {}, meio: {}, direita: {}, distância: {}, arfagem: {}".format(esq, meio, dir, dist, arfagem))
     wait(20)

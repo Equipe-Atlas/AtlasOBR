@@ -59,5 +59,9 @@ while True:
     hsv_meio = cormeio.hsv()
     hsv_dir = cordir.hsv() 
     wait(20)
-    print(hsv_esq.h, hsv_esq.s, hsv_esq.v)
-    andar.straight(10)
+    guinada = hub.imu.heading()
+    print("esquerda: {}, meio: {}, direita: {}, distância: {}, arfagem: {}".format(esq, meio, dir, dist, arfagem))
+    if esq_e_verde:
+        hub.light.on(Color.GREEN)
+    else:
+        hub.light.on(Color.RED)
