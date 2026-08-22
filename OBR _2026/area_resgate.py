@@ -5,7 +5,7 @@ from pybricks.tools import wait, StopWatch
 
 # === HUB ===
 hub = PrimeHub(broadcast_channel=2, observe_channels=[1])
-hub.light.on(Color.MAGENTA)
+hub.light.on(Color.BLUE)
 
 # === MOTORES E SENSORES ===
 sensor_garra = ColorSensor(Port.F)
@@ -19,20 +19,22 @@ garra.reset_angle(0)
 selecao.reset_angle(0)
 descarte.reset_angle(0)
 
-# === PARAMETROS ===
-dsaida = 110
-PASSO = 200
-TEMPO_PASSO = 2500
-TEMPO_GIRO = 1200
-LIMIAR_ENTRADA = 200
-CONTADOR_MIN_ENTRADA = 3
-
+# === POSICOES DOS MOTORES ===
 GARRA_CIMA = 90
 GARRA_BAIXO = 0
 SELECAO_NEUTRO = 0
 SELECAO_VIVAS = 180
+SELECAO_MORTAS = -180
 DESCARTE_FECHADO = 0
 DESCARTE_ABERTO = 90
+
+# === PARAMETROS ===
+dsaida = 110
+LIMIAR_ENTRADA = 200
+CONTADOR_MIN_ENTRADA = 3
+PASSO = 200
+TEMPO_PASSO = 2500
+TEMPO_GIRO = 1200
 
 # === PROTOCOLO BLE ===
 COD_ENTROU_CANTO = 100
@@ -44,6 +46,7 @@ COD_LIBERA = 10000
 COD_ANDA_FRENTE = 300
 COD_GIRA_90 = 301
 COD_PAUSA = 500
+COD_ENTROU_AREA = 600
 
 # === ESTADOS ===
 ESTADO_AGUARDANDO = 0
@@ -54,31 +57,27 @@ ESTADO_SAIDA = 3
 omnitrix = StopWatch()
 estado = ESTADO_AGUARDANDO
 contador_entrada = 0
+passou_rampa = False          # NOVO: trava igual ao Prometeu
 
 # === FUNCOES ===
 
-def le_dados_prometeu():
-    dados = hub.ble.observe(1)
-    if dados is None:
-        return 0, 0
-    if isinstance(dados, tuple) and len(dados) == 2:
-        return dados[0], dados[1]
-    return dados, 0
-
 def le_distancia_frente():
-    d, _ = le_dados_prometeu()
+    d = hub.ble.observe(1)
+    if d is None:
+        return 0
     return d
 
 def verificou_entrada_area():
-    _, flag = le_dados_prometeu()
-    if flag == 1:
-        return True
-    if ultra_esq.distance() > LIMIAR_ENTRADA and ultra_dir.distance() > LIMIAR_ENTRADA:
-        return True
-    return False
+    d_frente = le_distancia_frente()
+    d_esq = ultra_esq.distance()
+    d_dir = ultra_dir.distance()
+    return (d_frente > LIMIAR_ENTRADA and
+            d_esq > LIMIAR_ENTRADA and
+            d_dir > LIMIAR_ENTRADA)
 
 def em_canto():
-    return (ultra_esq.distance() < dsaida) and (ultra_dir.distance() < dsaida)
+    return (ultra_esq.distance() < dsaida and
+            ultra_dir.distance() < dsaida)
 
 def verifica_saida():
     d_esq = ultra_esq.distance()
@@ -104,30 +103,21 @@ def tem_vitima(sensor):
     return vitima_viva(sensor) or vitima_morta(sensor)
 
 def coleta_vitima_viva():
-    # 1. Garra esta embaixo, sensor ja leu
-    # 2. Seta selecao pro lado das vivas
     selecao.run_target(150, SELECAO_VIVAS)
     wait(200)
-    # 3. Levanta garra (pega vitima)
     garra.run_target(200, GARRA_CIMA)
     wait(300)
-    # 4. Abre descarte
     descarte.run_target(200, DESCARTE_ABERTO)
     wait(300)
-    # 5. Desce garra (solta vitima)
     garra.run_target(200, GARRA_BAIXO)
     wait(300)
-    # 6. Fecha descarte
     descarte.run_target(200, DESCARTE_FECHADO)
     wait(200)
-    # 7. Reseta selecao
     selecao.run_target(150, SELECAO_NEUTRO)
 
 def descarta_vitima_morta():
-    # 1. Abre descarte
     descarte.run_target(200, DESCARTE_ABERTO)
     wait(300)
-    # 2. Fecha descarte
     descarte.run_target(200, DESCARTE_FECHADO)
     wait(200)
 
@@ -149,17 +139,30 @@ def liberar_prometeu():
 
 # === LOOP PRINCIPAL ===
 while True:
+    # Le a arfagem do Atlas pra saber se passou pela rampa
+    arfagem, rolagem = hub.imu.tilt()
+
+    # Se detectar inclinacao (rampa), marca que passou
+    if arfagem > 5 or arfagem < -5:
+        passou_rampa = True
 
     if estado == ESTADO_AGUARDANDO:
-        if verificou_entrada_area():
-            contador_entrada += 1
-        else:
-            contador_entrada = 0
+        # SO verifica entrada se ja passou pela rampa
+        if passou_rampa:
+            if verificou_entrada_area():
+                contador_entrada += 1
+            else:
+                contador_entrada = 0
 
-        if contador_entrada >= CONTADOR_MIN_ENTRADA:
-            estado = ESTADO_VARREDURA
-            hub.light.on(Color.GREEN)
-            wait(500)
+            if contador_entrada >= CONTADOR_MIN_ENTRADA:
+                # ENTROU na area -> MAGENTA
+                hub.light.on(Color.MAGENTA)
+                # Avisa o Prometeu que entrou na area
+                hub.ble.broadcast(COD_ENTROU_AREA)
+                wait(1000)
+                # COMECA a varredura -> VERMELHO
+                hub.light.on(Color.RED)
+                estado = ESTADO_VARREDURA
 
     elif estado == ESTADO_VARREDURA:
         mandar_andar()
@@ -197,9 +200,10 @@ while True:
             estado = ESTADO_VARREDURA
 
     elif estado == ESTADO_SAIDA:
-        hub.light.on(Color.MAGENTA)
+        hub.light.on(Color.BLUE)
         wait(5000)
         estado = ESTADO_AGUARDANDO
         contador_entrada = 0
+        passou_rampa = False    # reseta pra proxima rodada
 
     wait(20)

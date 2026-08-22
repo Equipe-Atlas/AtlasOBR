@@ -37,6 +37,7 @@ COD_LIBERA = 10000
 COD_ANDA_FRENTE = 300
 COD_GIRA_90 = 301
 COD_PAUSA = 500
+COD_ENTROU_AREA = 600       # NOVO: Atlas avisa que entrou na area
 PASSO_QUADRADO = 200
 
 # === PID ===
@@ -55,22 +56,14 @@ dirpreto = False
 esqpreto = False
 tempo = 0
 na_area_resgate = False
-passou_rampa = False          # NOVO: so detecta resgate depois da rampa
+passou_rampa = False
 ultimo_comando_resgate = None
-contador_resgate = 0
-
-# === PARAMETROS ===
-LIMIAR_ENTRADA = 200
-CONTADOR_MIN_ENTRADA = 3
 
 # === FUNCOES AUXILIARES ===
 
 def mapeia_verde(sensor):
     dados = sensor.hsv()
     return (160 <= dados.h <= 200) and (dados.s > 40) and (50 <= dados.v <= 100)
-
-def detectou_entrada_resgate(distancia):
-    return distancia > LIMIAR_ENTRADA
 
 def encontra_linha():
     global integral, erro_anterior
@@ -109,18 +102,13 @@ while True:
     mensagem = hub.ble.observe(2)
     vel = 150
 
-    flag_resgate = 1 if na_area_resgate else 0
-    hub.ble.broadcast((dist, flag_resgate))
+    # --- BROADCAST: manda so a distancia pro Atlas ---
+    hub.ble.broadcast(dist)
 
     # --- DETECCAO DE ENTRADA NA AREA DE RESGATE ---
-    # SO verifica se ja passou pela rampa
+    # So aceita o sinal do Atlas se ja passou pela rampa
     if not na_area_resgate and passou_rampa:
-        if detectou_entrada_resgate(dist):
-            contador_resgate += 1
-        else:
-            contador_resgate = 0
-
-        if contador_resgate >= CONTADOR_MIN_ENTRADA:
+        if mensagem == COD_ENTROU_AREA:
             na_area_resgate = True
             hub.light.on(Color.MAGENTA)
             andar.stop()
@@ -128,7 +116,7 @@ while True:
 
     # --- RAMPAS (arfagem) ---
     if arfagem > 5 or arfagem < -5:
-        passou_rampa = True              # NOVO: marcou que passou a rampa
+        passou_rampa = True
         if arfagem > 3:
             vel = 300
         elif arfagem < -3:
@@ -160,8 +148,7 @@ while True:
             if mensagem == COD_LIBERA:
                 if achou_saida:
                     na_area_resgate = False
-                    passou_rampa = False         # NOVO: reseta tambem
-                    contador_resgate = 0
+                    passou_rampa = False
                     hub.light.on(Color.BLUE)
                     encontra_linha()
                 break
