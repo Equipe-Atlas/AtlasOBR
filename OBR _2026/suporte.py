@@ -41,7 +41,7 @@ while True:
     hsv_dir = cordir.hsv() 
     wait(20)
     guinada = hub.imu.heading()
-    print(hsv_esq.h, hsv_esq.s, hsv_esq.v)
+    print(arfagem)
     if esq_e_verde:
         hub.light.on(Color.GREEN)
     else:

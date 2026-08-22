@@ -50,7 +50,7 @@ na_area_resgate = False        # NOVO
 ultimo_comando_resgate = None  # NOVO
 def mapeia_verde(sensor):                                                     #
     dados = sensor.hsv()                                                      #
-    if (160 <= dados.h <= 210) and (dados.s > 35) and (40 <= dados.v <= 100): # função ler verde
+    if (160 <= dados.h <= 210) and (dados.s > 40) and (40 <= dados.v <= 100): # função ler verde
         return True                                                           #
     return False                                                              #
 
@@ -73,7 +73,7 @@ while True:
     hsv_dir = cordir.hsv()
     mensagem = hub.ble.observe(2)
     vel = 150
-    if arfagem > 5 or arfagem < -3:
+    if arfagem > 3 or arfagem < -3 and arfagem > -10:
         if arfagem > 3:
             vel = 300
         elif arfagem < -3:
@@ -103,8 +103,8 @@ while True:
                 motor_esq.run(-150)
                 motor_dir.run(-150)
                 wait(20) 
-        while arfagem < -3 and arfagem > - 7:
-            motor_esq.run(0)
+        while arfagem < -2 and arfagem > - 8:
+            motor_esq.run(150)
             motor_dir.run(150)
             arfagem, rolagem = hub.imu.tilt()
             arfagem = arfagem + 3.6
@@ -143,7 +143,7 @@ while True:
                     andar.turn(90)
                 ultimo_comando_resgate = mensagem
         else:
-            if dist < 75:
+            if dist < 90:
                 andar.turn(80)
                 ultimo_dist = ultra.distance()
                 while dist <= ultimo_dist:
@@ -182,30 +182,19 @@ while True:
                     if dirpreto == False or esqpreto == False:
                         while esq != Color.WHITE:
                             motor_esq.run(-50)
-                            motor_dir.run(-100)
+                            motor_dir.run(-75)
                             esq = coresq.color()
-                        omnitrix.reset()
-                        wait(20)
-                        tempo = omnitrix.time()
-                        while tempo < 1000:
-                            motor_esq.run(50)
-                            motor_dir.run(50)
-                            tempo = omnitrix.time()
-                            dir = coresq.color()
-                            dir_hsv = coresq.hsv()
-                            dir_e_verde = mapeia_verde(cordir)
-                            if dir == Color.GREEN or dir_e_verde:
-                                andar.turn(-200)
-                                andar.straight(50)
-                                tempo = 3000
-                            wait(20)
+                        andar.straight(20)
+                        dir = cordir.color()
+                        dir_e_verde = mapeia_verde(cordir)
+                        wait(100)
                         if dir == Color.GREEN or dir_e_verde:
-                            wait(20)
+                            andar.turn(-200)
+                            andar.straight(50)
                         else:
                             andar.straight(40)
                             andar.turn(-90)
-                            andar.straight(20)
-                        dirpreto = False
+                            andar.straight(40)
                     elif esqpreto == True or dirpreto == True:
                         andar.straight(50)
                         dirpreto = False
@@ -213,37 +202,27 @@ while True:
                 elif dir_e_verde or dir == Color.GREEN:
                     if dirpreto == False or esqpreto == False:
                         while dir != Color.WHITE:
-                            motor_esq.run(-100)
+                            motor_esq.run(-75)
                             motor_dir.run(-50)
                             dir = cordir.color()
-                        omnitrix.reset()
-                        wait(20)
-                        tempo = omnitrix.time()
-                        while tempo < 1000:
-                            motor_esq.run(50)
-                            motor_dir.run(50)
-                            tempo = omnitrix.time()
-                            esq = coresq.color()
-                            esq_hsv = coresq.hsv()
-                            esq_e_verde = mapeia_verde(coresq)
-                            if esq == Color.GREEN or esq_e_verde:
-                                andar.turn(-200)
-                                andar.straight(50)
-                                tempo = 3000
-                            wait(20)
+                        andar.straight(20)
+                        dir = cordir.color()
+                        esq_e_verde = mapeia_verde(coresq)
+                        wait(100)
                         if esq == Color.GREEN or esq_e_verde:
-                            wait(20)
+                            andar.turn(-200)
+                            andar.straight(50)
                         else:
                             andar.straight(40)
                             andar.turn(90)
-                            andar.straight(20)
+                            andar.straight(40)
                         dirpreto = False
                     elif esqpreto == True or dirpreto == True:
                         andar.straight(50)
                         dirpreto = False
                         esqpreto = False
                 else:
-                    if esq == Color.WHITE and meio > 50 and dir == Color.WHITE :
+                    if esq != Color.BLACK and meio > 50 and dir != Color.BLACK :
                         motor_esq.run(vel)
                         motor_dir.run(vel)
                         wait(200)
