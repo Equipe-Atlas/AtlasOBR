@@ -20,10 +20,9 @@ andar.settings(straight_speed=100, straight_acceleration=300,
                turn_rate=100, turn_acceleration=300)
 
 # === CORES ===
-Color.SILVER = Color(h=0, s=0, v=75)
 Color.BLACK = Color(h=240, s=100, v=20)
 Color.WHITE = Color(h=0, s=0, v=100)
-cores_detectaveis = (Color.GREEN, Color.SILVER, Color.BLACK,
+cores_detectaveis = (Color.GREEN, Color.BLACK,
                      Color.WHITE, Color.NONE, Color.RED)
 cordir.detectable_colors(cores_detectaveis)
 coresq.detectable_colors(cores_detectaveis)
@@ -56,6 +55,11 @@ esqpreto = False
 tempo = 0
 na_area_resgate = False
 ultimo_comando_resgate = None
+contador_resgate = 0
+
+# === PARAMETROS DE DETECCAO ===
+LIMIAR_ENTRADA = 200       # dist > isso = espaco aberto (entrou na area)
+CONTADOR_MIN_ENTRADA = 3   # quantas leituras seguidas pra confirmar entrada
 
 # === FUNCOES AUXILIARES ===
 
@@ -63,10 +67,10 @@ def mapeia_verde(sensor):
     dados = sensor.hsv()
     return (160 <= dados.h <= 200) and (dados.s > 40) and (50 <= dados.v <= 100)
 
-def mapeia_prata(sensor):
-    """Detecta faixa prata de entrada da area de resgate."""
-    dados = sensor.hsv()
-    return dados.s < 10 and dados.v > 65
+def detectou_entrada_resgate(distancia):
+    """Detecta entrada na area de resgate usando o ultrassonico da frente.
+    Se a distancia for maior que o limiar, significa espaco aberto a frente."""
+    return distancia > LIMIAR_ENTRADA
 
 def encontra_linha():
     """Gira ate reencontrar a linha preta no sensor do meio."""
@@ -103,9 +107,6 @@ while True:
     meio = cormeio.reflection()
     arfagem, rolagem = hub.imu.tilt()
     arfagem = arfagem + 3.6
-    hsv_esq = coresq.hsv()
-    hsv_meio = cormeio.hsv()
-    hsv_dir = cordir.hsv()
     mensagem = hub.ble.observe(2)
     vel = 150
 
@@ -113,12 +114,18 @@ while True:
     flag_resgate = 1 if na_area_resgate else 0
     hub.ble.broadcast((dist, flag_resgate))
 
-    # --- DETECCAO DE ENTRADA NA AREA DE RESGATE (faixa prata) ---
-    if mapeia_prata(cormeio) and not na_area_resgate:
-        na_area_resgate = True
-        hub.light.on(Color.MAGENTA)
-        andar.stop()
-        wait(500)
+    # --- DETECCAO DE ENTRADA NA AREA DE RESGATE (ultrassonico) ---
+    if not na_area_resgate:
+        if detectou_entrada_resgate(dist):
+            contador_resgate += 1
+        else:
+            contador_resgate = 0
+
+        if contador_resgate >= CONTADOR_MIN_ENTRADA:
+            na_area_resgate = True
+            hub.light.on(Color.MAGENTA)
+            andar.stop()
+            wait(500)
 
     # --- RAMPAS (arfagem) ---
     if arfagem > 5 or arfagem < -5:
@@ -153,6 +160,7 @@ while True:
             if mensagem == COD_LIBERA:
                 if achou_saida:
                     na_area_resgate = False
+                    contador_resgate = 0
                     hub.light.on(Color.BLUE)
                     encontra_linha()
                 break
