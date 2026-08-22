@@ -19,24 +19,18 @@ garra.reset_angle(0)
 selecao.reset_angle(0)
 descarte.reset_angle(0)
 
-# === CORES ===
-Color.BLACK = Color(h=240, s=100, v=20)
-Color.WHITE = Color(h=0, s=0, v=100)
-
 # === PARAMETROS ===
 dsaida = 110
 PASSO = 200
 TEMPO_PASSO = 2500
 TEMPO_GIRO = 1200
-LIMIAR_ENTRADA = 200      # dist > isso = espaco aberto (entrada da area)
-CONTADOR_MIN_ENTRADA = 3  # leituras seguidas pra confirmar
+LIMIAR_ENTRADA = 200
+CONTADOR_MIN_ENTRADA = 3
 
-# === POSICOES DOS MOTORES ===
 GARRA_CIMA = 90
 GARRA_BAIXO = 0
 SELECAO_NEUTRO = 0
 SELECAO_VIVAS = 180
-SELECAO_MORTAS = -180
 DESCARTE_FECHADO = 0
 DESCARTE_ABERTO = 90
 
@@ -49,6 +43,7 @@ COD_PRECISA_GIRAR = 209
 COD_LIBERA = 10000
 COD_ANDA_FRENTE = 300
 COD_GIRA_90 = 301
+COD_PAUSA = 500
 
 # === ESTADOS ===
 ESTADO_AGUARDANDO = 0
@@ -63,7 +58,6 @@ contador_entrada = 0
 # === FUNCOES ===
 
 def le_dados_prometeu():
-    """Le a tupla (distancia_frente, flag_resgate) do Prometeu."""
     dados = hub.ble.observe(1)
     if dados is None:
         return 0, 0
@@ -76,9 +70,6 @@ def le_distancia_frente():
     return d
 
 def verificou_entrada_area():
-    """Detecta entrada na area de resgate usando os ultrassonicos.
-    - Flag do Prometeu (ultrassonico frontal detectou espaco aberto), OU
-    - Ambos ultrassonicos laterais do Atlas detectam abertura."""
     _, flag = le_dados_prometeu()
     if flag == 1:
         return True
@@ -87,11 +78,9 @@ def verificou_entrada_area():
     return False
 
 def em_canto():
-    """Esta em um canto se ambos os ultrassonicos laterais < dsaida."""
     return (ultra_esq.distance() < dsaida) and (ultra_dir.distance() < dsaida)
 
 def verifica_saida():
-    """Checa os 3 ultrassonicos para encontrar saida."""
     d_esq = ultra_esq.distance()
     d_frente = le_distancia_frente()
     d_dir = ultra_dir.distance()
@@ -105,37 +94,42 @@ def verifica_saida():
 
 def vitima_viva(sensor):
     dados = sensor.hsv()
-    return dados.s > 15 and dados.v > 60
+    return dados.s < 15 and dados.v > 60
 
 def vitima_morta(sensor):
     dados = sensor.hsv()
     return dados.v < 15
 
 def tem_vitima(sensor):
-    dados = sensor.hsv()
-    return not (dados.s < 10 and dados.v > 65)
+    return vitima_viva(sensor) or vitima_morta(sensor)
 
-def coleta_e_processa_vitima():
+def coleta_vitima_viva():
+    # 1. Garra esta embaixo, sensor ja leu
+    # 2. Seta selecao pro lado das vivas
+    selecao.run_target(150, SELECAO_VIVAS)
+    wait(200)
+    # 3. Levanta garra (pega vitima)
     garra.run_target(200, GARRA_CIMA)
     wait(300)
-    if vitima_viva(sensor_garra):
-        selecao.run_target(150, SELECAO_VIVAS)
-    elif vitima_morta(sensor_garra):
-        selecao.run_target(150, SELECAO_MORTAS)
-    else:
-        garra.run_target(200, GARRA_BAIXO)
-        selecao.run_target(150, SELECAO_NEUTRO)
-        return
-    wait(200)
+    # 4. Abre descarte
     descarte.run_target(200, DESCARTE_ABERTO)
     wait(300)
+    # 5. Desce garra (solta vitima)
     garra.run_target(200, GARRA_BAIXO)
     wait(300)
+    # 6. Fecha descarte
     descarte.run_target(200, DESCARTE_FECHADO)
     wait(200)
-    garra.run_target(200, GARRA_CIMA)
-    wait(200)
+    # 7. Reseta selecao
     selecao.run_target(150, SELECAO_NEUTRO)
+
+def descarta_vitima_morta():
+    # 1. Abre descarte
+    descarte.run_target(200, DESCARTE_ABERTO)
+    wait(300)
+    # 2. Fecha descarte
+    descarte.run_target(200, DESCARTE_FECHADO)
+    wait(200)
 
 def mandar_andar():
     hub.ble.broadcast(COD_ANDA_FRENTE)
@@ -145,11 +139,18 @@ def mandar_girar():
     hub.ble.broadcast(COD_GIRA_90)
     wait(TEMPO_GIRO)
 
+def pausar_prometeu():
+    hub.ble.broadcast(COD_PAUSA)
+    wait(100)
+
+def liberar_prometeu():
+    hub.ble.broadcast(COD_LIBERA)
+    wait(100)
+
 # === LOOP PRINCIPAL ===
 while True:
 
     if estado == ESTADO_AGUARDANDO:
-        # Verifica entrada por ultrassonico (Atlas ou flag do Prometeu)
         if verificou_entrada_area():
             contador_entrada += 1
         else:
@@ -164,9 +165,16 @@ while True:
         mandar_andar()
 
         if tem_vitima(sensor_garra):
-            hub.ble.broadcast(COD_LIBERA)
-            wait(200)
-            coleta_e_processa_vitima()
+            pausar_prometeu()
+            wait(300)
+
+            if vitima_viva(sensor_garra):
+                coleta_vitima_viva()
+            elif vitima_morta(sensor_garra):
+                descarta_vitima_morta()
+
+            liberar_prometeu()
+            wait(100)
 
         if em_canto():
             estado = ESTADO_CANTO
@@ -180,10 +188,10 @@ while True:
         if resultado in (COD_SAIDA_ESQ, COD_SAIDA_FRENTE, COD_SAIDA_DIR):
             hub.ble.broadcast(resultado)
             wait(300)
-            hub.ble.broadcast(COD_LIBERA)
+            liberar_prometeu()
             estado = ESTADO_SAIDA
         else:
-            hub.ble.broadcast(COD_LIBERA)
+            liberar_prometeu()
             wait(100)
             mandar_girar()
             estado = ESTADO_VARREDURA

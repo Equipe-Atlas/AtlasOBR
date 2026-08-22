@@ -36,6 +36,7 @@ COD_PRECISA_GIRAR = 209
 COD_LIBERA = 10000
 COD_ANDA_FRENTE = 300
 COD_GIRA_90 = 301
+COD_PAUSA = 500
 PASSO_QUADRADO = 200
 
 # === PID ===
@@ -54,12 +55,13 @@ dirpreto = False
 esqpreto = False
 tempo = 0
 na_area_resgate = False
+passou_rampa = False          # NOVO: so detecta resgate depois da rampa
 ultimo_comando_resgate = None
 contador_resgate = 0
 
-# === PARAMETROS DE DETECCAO ===
-LIMIAR_ENTRADA = 200       # dist > isso = espaco aberto (entrou na area)
-CONTADOR_MIN_ENTRADA = 3   # quantas leituras seguidas pra confirmar entrada
+# === PARAMETROS ===
+LIMIAR_ENTRADA = 200
+CONTADOR_MIN_ENTRADA = 3
 
 # === FUNCOES AUXILIARES ===
 
@@ -68,12 +70,10 @@ def mapeia_verde(sensor):
     return (160 <= dados.h <= 200) and (dados.s > 40) and (50 <= dados.v <= 100)
 
 def detectou_entrada_resgate(distancia):
-    """Detecta entrada na area de resgate usando o ultrassonico da frente.
-    Se a distancia for maior que o limiar, significa espaco aberto a frente."""
     return distancia > LIMIAR_ENTRADA
 
 def encontra_linha():
-    """Gira ate reencontrar a linha preta no sensor do meio."""
+    global integral, erro_anterior
     meio = cormeio.reflection()
     omnitrix.reset()
     while meio > 25 and omnitrix.time() < 1500:
@@ -98,7 +98,6 @@ hub.imu.reset_heading(0)
 
 # === LOOP PRINCIPAL ===
 while True:
-    # --- LEITURAS ---
     esq_e_verde = mapeia_verde(coresq)
     dir_e_verde = mapeia_verde(cordir)
     dist = ultra.distance()
@@ -110,12 +109,12 @@ while True:
     mensagem = hub.ble.observe(2)
     vel = 150
 
-    # --- BROADCAST: manda (distancia, flag_resgate) pro Atlas ---
     flag_resgate = 1 if na_area_resgate else 0
     hub.ble.broadcast((dist, flag_resgate))
 
-    # --- DETECCAO DE ENTRADA NA AREA DE RESGATE (ultrassonico) ---
-    if not na_area_resgate:
+    # --- DETECCAO DE ENTRADA NA AREA DE RESGATE ---
+    # SO verifica se ja passou pela rampa
+    if not na_area_resgate and passou_rampa:
         if detectou_entrada_resgate(dist):
             contador_resgate += 1
         else:
@@ -129,6 +128,7 @@ while True:
 
     # --- RAMPAS (arfagem) ---
     if arfagem > 5 or arfagem < -5:
+        passou_rampa = True              # NOVO: marcou que passou a rampa
         if arfagem > 3:
             vel = 300
         elif arfagem < -3:
@@ -160,6 +160,7 @@ while True:
             if mensagem == COD_LIBERA:
                 if achou_saida:
                     na_area_resgate = False
+                    passou_rampa = False         # NOVO: reseta tambem
                     contador_resgate = 0
                     hub.light.on(Color.BLUE)
                     encontra_linha()
@@ -181,16 +182,25 @@ while True:
 
     # --- MODO AREA DE RESGATE ---
     elif na_area_resgate:
-        if mensagem != ultimo_comando_resgate:
+        if mensagem == COD_PAUSA:
+            andar.stop()
+            while True:
+                msg = hub.ble.observe(2)
+                if msg == COD_LIBERA:
+                    break
+                wait(20)
+            ultimo_comando_resgate = None
+        elif mensagem != ultimo_comando_resgate:
             if mensagem == COD_ANDA_FRENTE:
                 andar.straight(PASSO_QUADRADO)
             elif mensagem == COD_GIRA_90:
                 andar.turn(90)
+            elif mensagem == COD_LIBERA:
+                andar.stop()
             ultimo_comando_resgate = mensagem
 
     # --- SEGUE LINHA NORMAL ---
     else:
-        # Obstaculo a frente
         if dist < 75:
             andar.turn(80)
             ultimo_dist = ultra.distance()
@@ -225,12 +235,10 @@ while True:
             integral = 0
             erro_anterior = 0
 
-        # Verde dos dois lados
         elif (esq_e_verde and dir_e_verde) or (esq == Color.GREEN and dir == Color.GREEN):
             andar.turn(-200)
             andar.straight(50)
 
-        # Verde esquerdo
         elif esq_e_verde or esq == Color.GREEN:
             if not dirpreto and not esqpreto:
                 while esq != Color.WHITE:
@@ -252,7 +260,6 @@ while True:
                 dirpreto = False
                 esqpreto = False
 
-        # Verde direito
         elif dir_e_verde or dir == Color.GREEN:
             if not dirpreto and not esqpreto:
                 while dir != Color.WHITE:
@@ -275,7 +282,6 @@ while True:
                 dirpreto = False
                 esqpreto = False
 
-        # PID normal
         else:
             if esq == Color.WHITE and meio > 50 and dir == Color.WHITE:
                 motor_esq.run(vel)
