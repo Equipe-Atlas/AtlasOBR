@@ -9,27 +9,26 @@ hub = PrimeHub(broadcast_channel=1, observe_channels=[2])
 hub.light.on(Color.BLUE)
 
 # === MOTORES E SENSORES ===
+ultra = UltrasonicSensor(Port.C)
+cordir = ColorSensor(Port.B)
+cormeio = ColorSensor(Port.A)
+coresq = ColorSensor(Port.D)
 motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)
 motor_dir = Motor(Port.E)
 andar = DriveBase(motor_esq, motor_dir, 63, 133)
 andar.settings(straight_speed=100, straight_acceleration=300,
                turn_rate=100, turn_acceleration=300)
 
-ultra = UltrasonicSensor(Port.C)   # ultrassônico frente
-cordir = ColorSensor(Port.B)       # sensor cor direita
-cormeio = ColorSensor(Port.A)     # sensor cor meio
-coresq = ColorSensor(Port.D)       # sensor cor esquerda
-
 # === CORES ===
 Color.SILVER = Color(h=0, s=0, v=75)
 Color.BLACK = Color(h=240, s=100, v=20)
 Color.WHITE = Color(h=0, s=0, v=100)
 cores_detectaveis = (Color.GREEN, Color.SILVER, Color.BLACK,
-                      Color.WHITE, Color.NONE, Color.RED)
+                     Color.WHITE, Color.NONE, Color.RED)
 cordir.detectable_colors(cores_detectaveis)
 coresq.detectable_colors(cores_detectaveis)
 
-# === PROTOCOLO BLE (canal 2 = Atlas -> Prometeu) ===
+# === PROTOCOLO BLE ===
 COD_ENTROU_CANTO = 100
 COD_SAIDA_ESQ = 201
 COD_SAIDA_FRENTE = 202
@@ -38,20 +37,23 @@ COD_PRECISA_GIRAR = 209
 COD_LIBERA = 10000
 COD_ANDA_FRENTE = 300
 COD_GIRA_90 = 301
+PASSO_QUADRADO = 200
 
 # === PID ===
-reflection_alvo = 36
+reflection = 36
 vel = 150
 kp = 4
 ki = 0.05
 kd = 20
 integral = 0
 erro_anterior = 0
+ultimo_dist = 0
 
 # === ESTADO ===
 omnitrix = StopWatch()
 dirpreto = False
 esqpreto = False
+tempo = 0
 na_area_resgate = False
 ultimo_comando_resgate = None
 
@@ -62,20 +64,19 @@ def mapeia_verde(sensor):
     return (160 <= dados.h <= 200) and (dados.s > 40) and (50 <= dados.v <= 100)
 
 def mapeia_prata(sensor):
+    """Detecta faixa prata de entrada da area de resgate."""
     dados = sensor.hsv()
     return dados.s < 10 and dados.v > 65
 
 def encontra_linha():
-    """Gira ate encontrar a linha preta no sensor do meio."""
+    """Gira ate reencontrar a linha preta no sensor do meio."""
     meio = cormeio.reflection()
-    # tenta girar para a direita primeiro
     omnitrix.reset()
     while meio > 25 and omnitrix.time() < 1500:
         motor_esq.run(100)
         motor_dir.run(-100)
         meio = cormeio.reflection()
         wait(20)
-    # se nao achou, gira para a esquerda
     if meio > 25:
         omnitrix.reset()
         while meio > 25 and omnitrix.time() < 3000:
@@ -102,19 +103,22 @@ while True:
     meio = cormeio.reflection()
     arfagem, rolagem = hub.imu.tilt()
     arfagem = arfagem + 3.6
+    hsv_esq = coresq.hsv()
+    hsv_meio = cormeio.hsv()
+    hsv_dir = cordir.hsv()
     mensagem = hub.ble.observe(2)
     vel = 150
 
-    # --- BROADCAST (distancia + flag de resgate) pro Atlas ---
+    # --- BROADCAST: manda (distancia, flag_resgate) pro Atlas ---
     flag_resgate = 1 if na_area_resgate else 0
     hub.ble.broadcast((dist, flag_resgate))
 
-    # --- DETECCAO DE AREA DE RESGATE (faixa prata) ---
+    # --- DETECCAO DE ENTRADA NA AREA DE RESGATE (faixa prata) ---
     if mapeia_prata(cormeio) and not na_area_resgate:
         na_area_resgate = True
         hub.light.on(Color.MAGENTA)
         andar.stop()
-        wait(500)  # da tempo do Atlas tambem detectar
+        wait(500)
 
     # --- RAMPAS (arfagem) ---
     if arfagem > 5 or arfagem < -5:
@@ -129,8 +133,12 @@ while True:
             arfagem = arfagem + 3.6
             esq = coresq.color()
             dir = cordir.color()
-            ae = 200 if dir == Color.BLACK else 0
-            ad = 200 if esq == Color.BLACK else 0
+            ad = 0
+            ae = 0
+            if dir == Color.BLACK:
+                ae = 200
+            elif esq == Color.BLACK:
+                ad = 200
             motor_esq.run(guinada * -10 + vel + ae)
             motor_dir.run(guinada * 10 + vel + ad)
             wait(20)
@@ -138,7 +146,7 @@ while True:
     # --- COMANDOS DO ATLAS (CANTO / SAIDA) ---
     elif mensagem == COD_ENTROU_CANTO:
         andar.stop()
-        ultima_msg = None
+        ultima_mensagem_tratada = None
         achou_saida = False
         while True:
             mensagem = hub.ble.observe(2)
@@ -148,7 +156,7 @@ while True:
                     hub.light.on(Color.BLUE)
                     encontra_linha()
                 break
-            elif mensagem != ultima_msg:
+            elif mensagem != ultima_mensagem_tratada:
                 if mensagem == COD_SAIDA_ESQ:
                     andar.turn(-90)
                     achou_saida = True
@@ -160,14 +168,14 @@ while True:
                     achou_saida = True
                 elif mensagem == COD_PRECISA_GIRAR:
                     andar.turn(30)
-                ultima_msg = mensagem
+                ultima_mensagem_tratada = mensagem
             wait(20)
 
-    # --- MODO AREA DE RESGATE (executa comandos do Atlas) ---
+    # --- MODO AREA DE RESGATE ---
     elif na_area_resgate:
         if mensagem != ultimo_comando_resgate:
             if mensagem == COD_ANDA_FRENTE:
-                andar.straight(200)
+                andar.straight(PASSO_QUADRADO)
             elif mensagem == COD_GIRA_90:
                 andar.turn(90)
             ultimo_comando_resgate = mensagem
@@ -209,7 +217,7 @@ while True:
             integral = 0
             erro_anterior = 0
 
-        # Verde dos dois lados = inverter (T ou fim de linha)
+        # Verde dos dois lados
         elif (esq_e_verde and dir_e_verde) or (esq == Color.GREEN and dir == Color.GREEN):
             andar.turn(-200)
             andar.straight(50)
@@ -272,7 +280,7 @@ while True:
                 esqpreto = True
                 wait(500)
             else:
-                erro = reflection_alvo - meio
+                erro = reflection - meio
                 integral = integral + erro
                 integral = max(-100, min(100, integral))
                 derivada = erro - erro_anterior
