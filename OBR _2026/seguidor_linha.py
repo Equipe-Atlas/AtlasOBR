@@ -50,7 +50,7 @@ na_area_resgate = False        # NOVO
 ultimo_comando_resgate = None  # NOVO
 def mapeia_verde(sensor):                                                     #
     dados = sensor.hsv()                                                      #
-    if (160 <= dados.h <= 210) and (dados.s > 25) and (40 <= dados.v <= 100): # função ler verde
+    if (160 <= dados.h <= 210) and (dados.s > 35) and (40 <= dados.v <= 100): # função ler verde
         return True                                                           #
     return False                                                              #
 
@@ -182,18 +182,30 @@ while True:
                     if dirpreto == False or esqpreto == False:
                         while esq != Color.WHITE:
                             motor_esq.run(-50)
-                            motor_dir.run(-50)
+                            motor_dir.run(-100)
                             esq = coresq.color()
-                        andar.straight(20)
-                        dir = cordir.color()
-                        wait(100)
+                        omnitrix.reset()
+                        wait(20)
+                        tempo = omnitrix.time()
+                        while tempo < 1000:
+                            motor_esq.run(50)
+                            motor_dir.run(50)
+                            tempo = omnitrix.time()
+                            dir = coresq.color()
+                            dir_hsv = coresq.hsv()
+                            dir_e_verde = mapeia_verde(cordir)
+                            if dir == Color.GREEN or dir_e_verde:
+                                andar.turn(-200)
+                                andar.straight(50)
+                                tempo = 3000
+                            wait(20)
                         if dir == Color.GREEN or dir_e_verde:
-                            andar.turn(-200)
-                            andar.straight(50)
+                            wait(20)
                         else:
                             andar.straight(40)
                             andar.turn(-90)
-                            andar.straight(40)
+                            andar.straight(20)
+                        dirpreto = False
                     elif esqpreto == True or dirpreto == True:
                         andar.straight(50)
                         dirpreto = False
@@ -201,22 +213,30 @@ while True:
                 elif dir_e_verde or dir == Color.GREEN:
                     if dirpreto == False or esqpreto == False:
                         while dir != Color.WHITE:
-                            motor_esq.run(-75)
+                            motor_esq.run(-100)
                             motor_dir.run(-50)
                             dir = cordir.color()
-                        andar.straight(30)
-                        esq = coresq.color()
-                        wait(300)
-                        print(hsv_esq.h, hsv_esq.s, hsv_esq.v)
-                        andar.stop()
-                        wait(100999)
+                        omnitrix.reset()
+                        wait(20)
+                        tempo = omnitrix.time()
+                        while tempo < 1000:
+                            motor_esq.run(50)
+                            motor_dir.run(50)
+                            tempo = omnitrix.time()
+                            esq = coresq.color()
+                            esq_hsv = coresq.hsv()
+                            esq_e_verde = mapeia_verde(coresq)
+                            if esq == Color.GREEN or esq_e_verde:
+                                andar.turn(-200)
+                                andar.straight(50)
+                                tempo = 3000
+                            wait(20)
                         if esq == Color.GREEN or esq_e_verde:
-                            andar.turn(-200)
-                            andar.straight(50)
+                            wait(20)
                         else:
                             andar.straight(40)
                             andar.turn(90)
-                            andar.straight(40)
+                            andar.straight(20)
                         dirpreto = False
                     elif esqpreto == True or dirpreto == True:
                         andar.straight(50)
