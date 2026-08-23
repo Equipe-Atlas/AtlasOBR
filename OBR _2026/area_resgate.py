@@ -25,13 +25,8 @@ SELECAO_MORTAS = -180
 DESCARTE_FECHADO = 0
 DESCARTE_ABERTO = 90
 
-<<<<<<< HEAD
 dsaida = 100
 PASSO_QUADRADO = 200
-=======
-dsaida = 110
-PASSO = 200
->>>>>>> 916535a40ae9a3f34b6dbb7436eddd84def90d34
 TEMPO_PASSO = 2500
 TEMPO_GIRO = 1200
 
@@ -46,12 +41,6 @@ COD_GIRA_90 = 301
 COD_PAUSA = 500
 COD_ENTROU_AREA = 600
 
-<<<<<<< HEAD
-def em_canto():
-    if (ultra_esq.distance() + ultra_dir.distance()) < dsaida:
-        return True
-    return False
-=======
 ESTADO_AGUARDANDO = 0
 ESTADO_VARREDURA = 1
 ESTADO_CANTO = 2
@@ -59,17 +48,17 @@ ESTADO_SAIDA = 3
 
 omnitrix = StopWatch()
 estado = ESTADO_AGUARDANDO
->>>>>>> 916535a40ae9a3f34b6dbb7436eddd84def90d34
+
+def em_canto():
+    if (ultra_esq.distance() + ultra_dir.distance()) < dsaida:
+        return True
+    return False
 
 def le_distancia_frente():
     d = hub.ble.observe(1)
     if d is None:
         return 0
     return d
-
-def em_canto():
-    return (ultra_esq.distance() < dsaida and
-            ultra_dir.distance() < dsaida)
 
 def verifica_saida():
     d_esq = ultra_esq.distance()
@@ -165,23 +154,7 @@ while True:
 
         if resultado in (COD_SAIDA_ESQ, COD_SAIDA_FRENTE, COD_SAIDA_DIR):
             hub.ble.broadcast(resultado)
-<<<<<<< HEAD
             wait(200)
-            hub.ble.broadcast(COD_LIBERA)
-            return
-        hub.ble.broadcast(COD_LIBERA)
-        wait(100)
-        hub.ble.broadcast(COD_GIRA_90)
-        wait(TEMPO_GIRO)
-while True:
-    dist_esq = ultra_esq.distance()
-    dist_dir = ultra_dir.distance()
-    if em_canto:
-        hub.ble.broadcast(200)
-    wait(20)
- 
-=======
-            wait(300)
             liberar_prometeu()
             estado = ESTADO_SAIDA
         else:
@@ -194,5 +167,5 @@ while True:
         hub.light.on(Color.BLUE)
         wait(5000)
         estado = ESTADO_AGUARDANDO
+
     wait(20)
->>>>>>> 916535a40ae9a3f34b6dbb7436eddd84def90d34

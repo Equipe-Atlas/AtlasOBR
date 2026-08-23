@@ -71,6 +71,7 @@ while True:
     hsv_dir = cordir.hsv()
     mensagem = hub.ble.observe(2)
     vel = 150
+
     if arfagem > 5 or arfagem < -5:
         passou_rampa = True
         if arfagem > 3:
@@ -94,9 +95,37 @@ while True:
             motor_dir.run(guinada * 10 + vel + ad)
             wait(20)
     else:
-        if mensagem == 200:
+        if mensagem == COD_ENTROU_CANTO:
             andar.stop()
-            wait(1000)
+            ultima_mensagem_tratada = None
+            achou_saida = False
+            while True:
+                mensagem = hub.ble.observe(2)
+                if mensagem == COD_LIBERA:
+                    if achou_saida:
+                        na_area_resgate = False
+                    break
+                elif mensagem != ultima_mensagem_tratada:
+                    if mensagem == COD_SAIDA_ESQ:
+                        andar.turn(-90)
+                        achou_saida = True
+                    elif mensagem == COD_SAIDA_FRENTE:
+                        andar.straight(100)
+                        achou_saida = True
+                    elif mensagem == COD_SAIDA_DIR:
+                        andar.turn(90)
+                        achou_saida = True
+                    elif mensagem == COD_PRECISA_GIRAR:
+                        andar.turn(30)
+                    ultima_mensagem_tratada = mensagem
+                wait(20)
+        elif na_area_resgate:
+            if mensagem != ultimo_comando_resgate:
+                if mensagem == COD_ANDA_FRENTE:
+                    andar.straight(PASSO_QUADRADO)
+                elif mensagem == COD_GIRA_90:
+                    andar.turn(90)
+                ultimo_comando_resgate = mensagem
         else:
             if dist < 90:
                 andar.turn(80)
@@ -196,10 +225,70 @@ while True:
                         correcao = (kp * erro) + (ki * integral) + (kd * derivada)
                         if correcao > 300: correcao = 300
                         elif correcao < -300: correcao = -300
-                        if dir == Color.BLACK:
+                        if dir == Color.BLACK and dir != Color.GREEN:
                             dirpreto = True
-                        elif esq == Color.BLACK:
+                            while meio > 25:
+                                motor_esq.run(100)
+                                motor_dir.run(-125)
+                                meio = cormeio.reflection()
+                                esq = coresq.color()
+                                if esq != Color.WHITE and esq != Color.SILVER:
+                                    while meio > 25:
+                                        motor_esq.run(-100)
+                                        motor_dir.run(100)
+                                        meio = cormeio.reflection()
+                                        esq = coresq.color()
+                                        wait(20)
+                                wait(20)
+                            dir = cordir.color()
+                            if meio < 25 and dir == Color.BLACK:
+                                omnitrix.reset()
+                                while meio < 25 and tempo < 600:
+                                    motor_esq.run(100)
+                                    motor_dir.run(100)
+                                    meio = cormeio.reflection()
+                                    tempo = omnitrix.time()
+                                    wait(20)
+                                wait(100)
+                                while meio > 25:
+                                    motor_esq.run(100)
+                                    motor_dir.run(-150)
+                                    meio = cormeio.reflection()
+                                    esq = coresq.color()
+                                    wait(20)
+                                wait(20)
+                        elif esq == Color.BLACK and esq != Color.GREEN:
                             esqpreto = True
+                            while meio > 25:
+                                motor_esq.run(-125)
+                                motor_dir.run(100)
+                                meio = cormeio.reflection()
+                                dir = cordir.color()
+                                if dir != Color.WHITE and dir != Color.SILVER:
+                                    while meio > 25:
+                                        motor_esq.run(100)
+                                        motor_dir.run(-100)
+                                        meio = cormeio.reflection()
+                                        dir = cordir.color()
+                                    wait(20)
+                                wait(20)
+                            esq = coresq.color()
+                            if meio < 25 and esq == Color.BLACK:
+                                omnitrix.reset()
+                                while meio < 25 and tempo < 600:
+                                    motor_esq.run(100)
+                                    motor_dir.run(100)
+                                    meio = cormeio.reflection()
+                                    tempo = omnitrix.time()
+                                    wait(20)
+                                wait(100)
+                                while meio > 25:
+                                    motor_esq.run(-150)
+                                    motor_dir.run(100)
+                                    meio = cormeio.reflection()
+                                    dir = cordir.color()
+                                    wait(20)
+                                wait(20)
                         motor_esq.run(vel + correcao)
                         motor_dir.run(vel - correcao)
                         erro_anterior = erro
