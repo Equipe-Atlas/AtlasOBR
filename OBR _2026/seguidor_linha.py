@@ -5,6 +5,7 @@ from pybricks.tools import wait, StopWatch
 from pybricks.robotics import DriveBase
 
 hub = PrimeHub(broadcast_channel=1, observe_channels=[2])
+COD_ENTROU_AREA = 600
 COD_ENTROU_CANTO = 100
 COD_SAIDA_ESQ = 201
 COD_SAIDA_FRENTE = 202
@@ -13,7 +14,7 @@ COD_PRECISA_GIRAR = 209
 COD_LIBERA = 10000
 COD_ANDA_FRENTE = 300
 COD_GIRA_90 = 301
-PASSO_QUADRADO = 200
+COD_PAUSA = 500
 
 ultra = UltrasonicSensor(Port.C)
 cordir = ColorSensor(Port.B)
@@ -45,7 +46,17 @@ esqpreto = False
 tempo = 0
 na_area_resgate = False
 passou_rampa = False
-ultimo_comando_resgate = None
+ultimo_comando = None
+
+def na_area_resgate():
+    andar.stop()
+    dist = ultra.distance()
+    hub.ble.broadcast(dist)
+    mensagem = hub.ble.observe(2)
+    if mensagem == COD_ENTROU_AREA:
+        return True
+    return False
+    print(mensagem)
 
 def mapeia_verde(sensor):
     dados = sensor.hsv()
@@ -94,9 +105,52 @@ while True:
             motor_dir.run(guinada * 10 + vel + ad)
             wait(20)
     else:
-        if mensagem == 200:
-            andar.stop()
-            wait(1000)
+        if na_area_resgate:
+            hub.light.on(Color.RED)
+            if mensagem == COD_PAUSA:
+                andar.stop()
+                while True:
+                    msg = hub.ble.observe(2)
+                    if msg == COD_LIBERA:
+                        break
+                    wait(20)
+                ultimo_comando = None
+
+            elif mensagem == COD_ENTROU_CANTO:
+                andar.stop()
+                ultima_msg = None
+                achou_saida = False
+                while True:
+                    msg = hub.ble.observe(2)
+                    if msg == COD_LIBERA:
+                        if achou_saida:
+                            na_area_resgate = False
+                            hub.light.on(Color.BLUE)
+                        break
+                    elif msg != ultima_msg:
+                        if msg == COD_SAIDA_ESQ:
+                            andar.turn(-90)
+                            achou_saida = True
+                        elif msg == COD_SAIDA_FRENTE:
+                            andar.straight(100)
+                            achou_saida = True
+                        elif msg == COD_SAIDA_DIR:
+                            andar.turn(90)
+                            achou_saida = True
+                        elif msg == COD_PRECISA_GIRAR:
+                            andar.turn(30)
+                        ultima_msg = msg
+                    wait(20)
+            elif mensagem != ultimo_comando:
+                if mensagem == COD_ANDA_FRENTE:
+                    andar.straight(200)
+                elif mensagem == COD_GIRA_90:
+                    andar.turn(90)
+                elif mensagem == COD_LIBERA:
+                    andar.stop()
+                ultimo_comando = mensagem
+
+        # === SEGUE LINHA ===
         else:
             if dist < 90:
                 andar.turn(80)
