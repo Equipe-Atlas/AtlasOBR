@@ -14,7 +14,7 @@ descarte = Motor(Port.A)
 
 omnitrix = StopWatch()
 
-dsaida = 110
+dsaida = 100
 PASSO_QUADRADO = 200
 TEMPO_PASSO = 2500
 TEMPO_GIRO = 1200
@@ -29,7 +29,9 @@ COD_ANDA_FRENTE = 300
 COD_GIRA_90 = 301
 
 def em_canto():
-    return (ultra_esq.distance() + ultra_dir.distance()) < dsaida
+    if (ultra_esq.distance() + ultra_dir.distance()) < dsaida:
+        return True
+    return False
 
 def le_distancia_frente():
     d = hub.ble.observe(1)
@@ -95,7 +97,9 @@ def varredura_normal():
         hub.ble.broadcast(COD_GIRA_90)
         wait(TEMPO_GIRO)
 while True:
-    if varredura_normal():
-        print("Está em saida")
+    dist_esq = ultra_esq.distance()
+    dist_dir = ultra_dir.distance()
+    if em_canto:
+        hub.ble.broadcast(200)
     wait(20)
  

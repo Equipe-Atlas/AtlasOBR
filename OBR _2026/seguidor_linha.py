@@ -47,17 +47,6 @@ na_area_resgate = False
 passou_rampa = False
 ultimo_comando_resgate = None
 
-# Busca de linha em curva: parâmetros da recuperação em 2 fases (arco suave
-# -> giro fechado). Como a pista da OBR é sorteada e pode ter curva de
-# qualquer ângulo (grande, pequena, 90°), a busca não pode depender de um
-# raio de curva fixo nem de uma leitura de cor isolada pra decidir direção.
-FASE_ARCO_MS = 350       # tempo tentando um arco suave antes de fechar o giro
-BUSCA_MAX_MS = 1500      # trava de segurança: nunca busca pra sempre
-VEL_ARCO_RAPIDA = 150    # roda de fora durante o arco suave
-VEL_ARCO_LENTA = 30      # roda de dentro durante o arco suave
-VEL_GIRO_FECHADO = 120   # cada roda durante o giro fechado (fase 2)
-
-
 def mapeia_verde(sensor):
     dados = sensor.hsv()
     if (160 <= dados.h <= 210) and (dados.s > 40) and (40 <= dados.v <= 100):
@@ -115,37 +104,9 @@ while True:
             motor_dir.run(guinada * 10 + vel + ad)
             wait(20)
     else:
-        if mensagem == COD_ENTROU_CANTO:
+        if mensagem == 200:
             andar.stop()
-            ultima_mensagem_tratada = None
-            achou_saida = False
-            while True:
-                mensagem = hub.ble.observe(2)
-                if mensagem == COD_LIBERA:
-                    if achou_saida:
-                        na_area_resgate = False
-                    break
-                elif mensagem != ultima_mensagem_tratada:
-                    if mensagem == COD_SAIDA_ESQ:
-                        andar.turn(-90)
-                        achou_saida = True
-                    elif mensagem == COD_SAIDA_FRENTE:
-                        andar.straight(100)
-                        achou_saida = True
-                    elif mensagem == COD_SAIDA_DIR:
-                        andar.turn(90)
-                        achou_saida = True
-                    elif mensagem == COD_PRECISA_GIRAR:
-                        andar.turn(30)
-                    ultima_mensagem_tratada = mensagem
-                wait(20)
-        elif na_area_resgate:
-            if mensagem != ultimo_comando_resgate:
-                if mensagem == COD_ANDA_FRENTE:
-                    andar.straight(PASSO_QUADRADO)
-                elif mensagem == COD_GIRA_90:
-                    andar.turn(90)
-                ultimo_comando_resgate = mensagem
+            wait(1000)
         else:
             if dist < 90:
                 andar.turn(80)
@@ -247,75 +208,8 @@ while True:
                         elif correcao < -300: correcao = -300
                         if dir_e_preto and dir != Color.GREEN:
                             dirpreto = True
-                            # Busca em 2 fases, sem depender do raio da curva
-                            # nem de leitura de cor pra decidir direção.
-                            omnitrix.reset()
-                            meio = cormeio.reflection()
-                            while meio > 25:
-                                t = omnitrix.time()
-                                if t < FASE_ARCO_MS:
-                                    motor_esq.run(VEL_ARCO_RAPIDA)
-                                    motor_dir.run(VEL_ARCO_LENTA)
-                                else:
-                                    motor_esq.run(VEL_GIRO_FECHADO)
-                                    motor_dir.run(-VEL_GIRO_FECHADO)
-                                meio = cormeio.reflection()
-                                if t > BUSCA_MAX_MS:
-                                    break
-                                wait(20)
-                            # Linha reencontrada - confere se não caiu em cima
-                            # de um cruzamento (linha reta atravessada) em vez
-                            # da curva, e se sim atravessa até limpar.
-                            if meio < 25 and mapeia_preto(cordir):
-                                omnitrix.reset()
-                                tempo = 0
-                                while meio < 25 and tempo < 600:
-                                    motor_esq.run(100)
-                                    motor_dir.run(100)
-                                    meio = cormeio.reflection()
-                                    tempo = omnitrix.time()
-                                    wait(20)
-                                wait(100)
-                                while meio > 25:
-                                    motor_esq.run(100)
-                                    motor_dir.run(-150)
-                                    meio = cormeio.reflection()
-                                    esq = coresq.color()
-                                    wait(20)
-                                wait(20)
                         elif esq_e_preto and esq != Color.GREEN:
                             esqpreto = True
-                            omnitrix.reset()
-                            meio = cormeio.reflection()
-                            while meio > 25:
-                                t = omnitrix.time()
-                                if t < FASE_ARCO_MS:
-                                    motor_esq.run(VEL_ARCO_LENTA)
-                                    motor_dir.run(VEL_ARCO_RAPIDA)
-                                else:
-                                    motor_esq.run(-VEL_GIRO_FECHADO)
-                                    motor_dir.run(VEL_GIRO_FECHADO)
-                                meio = cormeio.reflection()
-                                if t > BUSCA_MAX_MS:
-                                    break
-                                wait(20)
-                            if meio < 25 and mapeia_preto(coresq):
-                                omnitrix.reset()
-                                tempo = 0
-                                while meio < 25 and tempo < 600:
-                                    motor_esq.run(100)
-                                    motor_dir.run(100)
-                                    meio = cormeio.reflection()
-                                    tempo = omnitrix.time()
-                                    wait(20)
-                                wait(100)
-                                while meio > 25:
-                                    motor_esq.run(-150)
-                                    motor_dir.run(100)
-                                    meio = cormeio.reflection()
-                                    dir = cordir.color()
-                                    wait(20)
-                                wait(20)
                         motor_esq.run(vel + correcao)
                         motor_dir.run(vel - correcao)
                         erro_anterior = erro
