@@ -3,11 +3,9 @@ from pybricks.pupdevices import Motor, UltrasonicSensor, ColorSensor
 from pybricks.parameters import Color, Port
 from pybricks.tools import wait, StopWatch
 
-# === HUB ===
 hub = PrimeHub(broadcast_channel=2, observe_channels=[1])
 hub.light.on(Color.BLUE)
 
-# === MOTORES E SENSORES ===
 sensor_garra = ColorSensor(Port.F)
 ultra_esq = UltrasonicSensor(Port.B)
 ultra_dir = UltrasonicSensor(Port.D)
@@ -19,7 +17,6 @@ garra.reset_angle(0)
 selecao.reset_angle(0)
 descarte.reset_angle(0)
 
-# === POSICOES DOS MOTORES ===
 GARRA_CIMA = 90
 GARRA_BAIXO = 0
 SELECAO_NEUTRO = 0
@@ -28,15 +25,11 @@ SELECAO_MORTAS = -180
 DESCARTE_FECHADO = 0
 DESCARTE_ABERTO = 90
 
-# === PARAMETROS ===
 dsaida = 110
-LIMIAR_ENTRADA = 200
-CONTADOR_MIN_ENTRADA = 3
 PASSO = 200
 TEMPO_PASSO = 2500
 TEMPO_GIRO = 1200
 
-# === PROTOCOLO BLE ===
 COD_ENTROU_CANTO = 100
 COD_SAIDA_ESQ = 201
 COD_SAIDA_FRENTE = 202
@@ -48,7 +41,6 @@ COD_GIRA_90 = 301
 COD_PAUSA = 500
 COD_ENTROU_AREA = 600
 
-# === ESTADOS ===
 ESTADO_AGUARDANDO = 0
 ESTADO_VARREDURA = 1
 ESTADO_CANTO = 2
@@ -56,24 +48,12 @@ ESTADO_SAIDA = 3
 
 omnitrix = StopWatch()
 estado = ESTADO_AGUARDANDO
-contador_entrada = 0
-passou_rampa = False          # NOVO: trava igual ao Prometeu
-
-# === FUNCOES ===
 
 def le_distancia_frente():
     d = hub.ble.observe(1)
     if d is None:
         return 0
     return d
-
-def verificou_entrada_area():
-    d_frente = le_distancia_frente()
-    d_esq = ultra_esq.distance()
-    d_dir = ultra_dir.distance()
-    return (d_frente > LIMIAR_ENTRADA and
-            d_esq > LIMIAR_ENTRADA and
-            d_dir > LIMIAR_ENTRADA)
 
 def em_canto():
     return (ultra_esq.distance() < dsaida and
@@ -137,32 +117,15 @@ def liberar_prometeu():
     hub.ble.broadcast(COD_LIBERA)
     wait(100)
 
-# === LOOP PRINCIPAL ===
 while True:
-    # Le a arfagem do Atlas pra saber se passou pela rampa
-    arfagem, rolagem = hub.imu.tilt()
-
-    # Se detectar inclinacao (rampa), marca que passou
-    if arfagem > 5 or arfagem < -5:
-        passou_rampa = True
+    mensagem = hub.ble.observe(1)
 
     if estado == ESTADO_AGUARDANDO:
-        # SO verifica entrada se ja passou pela rampa
-        if passou_rampa:
-            if verificou_entrada_area():
-                contador_entrada += 1
-            else:
-                contador_entrada = 0
-
-            if contador_entrada >= CONTADOR_MIN_ENTRADA:
-                # ENTROU na area -> MAGENTA
-                hub.light.on(Color.MAGENTA)
-                # Avisa o Prometeu que entrou na area
-                hub.ble.broadcast(COD_ENTROU_AREA)
-                wait(1000)
-                # COMECA a varredura -> VERMELHO
-                hub.light.on(Color.RED)
-                estado = ESTADO_VARREDURA
+        if mensagem == COD_ENTROU_AREA:
+            hub.light.on(Color.MAGENTA)
+            wait(1000)
+            hub.light.on(Color.RED)
+            estado = ESTADO_VARREDURA
 
     elif estado == ESTADO_VARREDURA:
         mandar_andar()
@@ -203,7 +166,4 @@ while True:
         hub.light.on(Color.BLUE)
         wait(5000)
         estado = ESTADO_AGUARDANDO
-        contador_entrada = 0
-        passou_rampa = False    # reseta pra proxima rodada
-
     wait(20)
