@@ -13,6 +13,8 @@ COD_PRECISA_GIRAR = 209
 COD_LIBERA = 10000
 COD_ANDA_FRENTE = 300
 COD_GIRA_90 = 301
+COD_PAUSA = 500
+COD_ENTROU_AREA = 600
 PASSO_QUADRADO = 200
 
 ultra = UltrasonicSensor(Port.C)
@@ -72,6 +74,12 @@ while True:
     mensagem = hub.ble.observe(2)
     vel = 150
 
+    # --- DETECCAO DE ENTRADA NA AREA DE RESGATE ---
+    if not na_area_resgate and mensagem == COD_ENTROU_AREA:
+        na_area_resgate = True
+        hub.light.on(Color.MAGENTA)
+        wait(500)
+
     if arfagem > 5 or arfagem < -5:
         passou_rampa = True
         if arfagem > 3:
@@ -104,6 +112,7 @@ while True:
                 if mensagem == COD_LIBERA:
                     if achou_saida:
                         na_area_resgate = False
+                        hub.light.on(Color.BLUE)
                     break
                 elif mensagem != ultima_mensagem_tratada:
                     if mensagem == COD_SAIDA_ESQ:
@@ -120,11 +129,22 @@ while True:
                     ultima_mensagem_tratada = mensagem
                 wait(20)
         elif na_area_resgate:
-            if mensagem != ultimo_comando_resgate:
+            if mensagem == COD_PAUSA:
+                andar.stop()
+                while True:
+                    msg = hub.ble.observe(2)
+                    if msg == COD_LIBERA:
+                        break
+                    wait(20)
+                ultimo_comando_resgate = None
+            elif mensagem != ultimo_comando_resgate:
+                hub.light.on(Color.RED)
                 if mensagem == COD_ANDA_FRENTE:
                     andar.straight(PASSO_QUADRADO)
                 elif mensagem == COD_GIRA_90:
                     andar.turn(90)
+                elif mensagem == COD_LIBERA:
+                    andar.stop()
                 ultimo_comando_resgate = mensagem
         else:
             if dist < 90:
