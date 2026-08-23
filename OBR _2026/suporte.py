@@ -13,6 +13,10 @@ coresq = ColorSensor(Port.D)
 
 motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)
 motor_dir = Motor(Port.E)
+
+andar = DriveBase(motor_esq, motor_dir, 63, 133)
+andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)
+
 Color.SILVER = Color(h=0, s=0, v=75)
 Color.BLACK = Color(h=240 < 170, s=40<1, v= 100 < 10)
 cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.RED)
@@ -26,6 +30,10 @@ def mapeia_verde(sensor):                                                     #
     return False                                                              #
 
 omnitrix = StopWatch()
+
+omnitrix.reset()
+andar.straight(40)
+print(omnitrix.time())
 
 while True:
     esq_e_verde = mapeia_verde(coresq)
@@ -41,7 +49,6 @@ while True:
     hsv_dir = cordir.hsv() 
     wait(20)
     guinada = hub.imu.heading()
-    print(meio)
     if esq_e_verde:
         hub.light.on(Color.GREEN)
     else:
