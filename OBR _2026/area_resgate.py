@@ -5,6 +5,7 @@ from pybricks.tools import wait, StopWatch
 
 hub = PrimeHub(broadcast_channel=2, observe_channels=[1])
 hub.light.on(Color.MAGENTA)
+
 cores = ColorSensor(Port.F)
 ultra_esq = UltrasonicSensor(Port.B)
 ultra_dir = UltrasonicSensor(Port.D)
@@ -28,10 +29,23 @@ COD_LIBERA = 10000
 COD_ANDA_FRENTE = 300
 COD_GIRA_90 = 301
 
+parar = 0
+
+Color.SILVER = Color(h=0, s=0, v=75)
+Color.BLACK = Color(h=240, s=100, v=50)
+Color.WHITE = Color(h=0, s=0, v=100)
+cores_ler = (Color.SILVER, Color.BLACK, Color.WHITE)
+cores.detectable_colors(cores_ler)
+
 def em_canto():
     if (ultra_esq.distance() + ultra_dir.distance()) < dsaida:
         return True
     return False
+
+def em_area():
+    d_esq = ultra_esq.distance()
+    d_dir = ultra_dir.distance()
+    return (d_esq + d_dir) < 200
 
 def le_distancia_frente():
     d = hub.ble.observe(1)
@@ -50,12 +64,6 @@ def verifica_saida():
     if d_dir > dsaida:
         return COD_SAIDA_DIR
     return COD_PRECISA_GIRAR
-
-Color.SILVER = Color(h=0, s=0, v=75)
-Color.BLACK = Color(h=240, s=100, v=50)
-Color.WHITE = Color(h=0, s=0, v=100)
-cores_ler = (Color.SILVER, Color.BLACK, Color.WHITE)
-cores.detectable_colors(cores_ler)
 
 def vitima_viva(sensor):
     dados = sensor.hsv()
@@ -76,41 +84,89 @@ def descarta_vitima():
     wait(200)
     descarte.run_angle(200, -90)
 
-def varredura_normal():
+def varredura_normal(saida):
+    def lado_parede():
+        d_esq = ultra_esq.distance()
+        d_dir = ultra_dir.distance()
+        if d_esq < d_dir:
+            return "esquerda"
+        elif d_dir < d_esq:
+            return "direita"
+        else:
+            return "centro"
+    def verifica_area_resgate():
+        d_esq = ultra_esq.distance()
+        d_dir = ultra_dir.distance()
+        lado = lado_parede()
+        if d_esq < d_dir and d_esq < 200:
+            return "direita"
+        elif d_dir < d_esq and d_dir < 200:
+            return "esquerda"
+        elif d_esq > 200 and d_dir > 200:
+            return "centro"
+        return None
+    # === CORPO DA VARREDURA ===
+
+    # Anda um passo
     hub.ble.broadcast(COD_ANDA_FRENTE)
     wait(TEMPO_PASSO)
+
+    # Verifica vítima
     if vitima_viva(cores):
         coleta_vitima()
     elif vitima_morta(cores):
         descarta_vitima()
+    area = verifica_area_resgate()
+    if area == "esquerda":
+        print("Area de resgate: esquerda")
+    elif area == "direita":
+        print("Area de resgate: direita")
+    elif area == "centro":
+        print("Area de resgate: centro")
+    lado = lado_parede()
+    print("Parede: " + lado)
+    if saida in (COD_SAIDA_ESQ, COD_SAIDA_FRENTE, COD_SAIDA_DIR):
+        # Achou a saída
+        hub.ble.broadcast(saida)
+        wait(200)
+        hub.ble.broadcast(COD_LIBERA)
+        return True
+
+    # Não achou saída, verifica se está num canto
     if em_canto():
         hub.ble.broadcast(COD_ENTROU_CANTO)
         wait(100)
-        resultado = verifica_saida()
-        if resultado in (COD_SAIDA_ESQ, COD_SAIDA_FRENTE, COD_SAIDA_DIR):
-            hub.ble.broadcast(resultado)
-            wait(200)
-            hub.ble.broadcast(COD_LIBERA)
-            return
-        hub.ble.broadcast(COD_LIBERA)
-        wait(100)
-        hub.ble.broadcast(COD_GIRA_90)
-        wait(TEMPO_GIRO)
+
+    hub.ble.broadcast(COD_LIBERA)
+    wait(100)
+    hub.ble.broadcast(COD_GIRA_90)
+    wait(TEMPO_GIRO)
+    return False
+
+# === LOOP PRINCIPAL ===
 while True:
     dist_esq = ultra_esq.distance()
     dist_dir = ultra_dir.distance()
     arfagem, rolagem = hub.imu.tilt()
-    if dist_esq + dist_dir < 100 and arfagem > -3 and arfagem < 3:
+    arfagem = arfagem + 3.6
+    mensagem = hub.ble.observe(1)
+    if mensagem is None:
+        mensagem = 0
+    print(mensagem)
+    if dist_esq + dist_dir < 200 and arfagem > -3 and arfagem < 3:
         hub.ble.broadcast(200)
-        wait(100)
-        while not hub.ble.broadcast(1000):
-            dist_esq1 = ultra_esq.distance()
-            dist_dir1 = ultra_dir.distance()
-            if dist_dir > dist_esq:
-                hub.ble.broadcast(dist_esq)
-            else:
-                hub.ble.broadcast(dist_dir1 - dist_dir)
-            print(dist_dir1 - dist_dir)
-        wait(20)
-    hub.ble.broadcast(200)
+        wait(1000)
+        dist_esq = ultra_esq.distance()
+        dist_dir = ultra_dir.distance()
+        if dist_esq < dist_dir:hub.ble.broadcast(502)
+        else: hub.ble.broadcast(503)
+        wait(1000)
+        while parar != 7777777:
+            dist_esq = ultra_esq.distance()
+            dist_dir = ultra_dir.distance()
+            dist = (dist_esq, dist_dir)
+            hub.ble.broadcast(dist)
+            wait(20)
+        parar = 0
+
     wait(20)
