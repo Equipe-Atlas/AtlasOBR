@@ -53,22 +53,12 @@ def mapeia_verde(sensor):
         return True
     return False
 
-
-def mapeia_preto(sensor):
-    dados = sensor.hsv()
-    if (180 <= dados.h <= 240) and (10 <= dados.s <= 100) and (10 <= dados.v <= 50):
-        return True
-    return False
-
-
 hub.imu.reset_heading(0)
 hub.light.on(Color.BLUE)
 
 while True:
     esq_e_verde = mapeia_verde(coresq)
     dir_e_verde = mapeia_verde(cordir)
-    esq_e_preto = mapeia_preto(coresq)
-    dir_e_preto = mapeia_preto(cordir)
     dist = ultra.distance()
     hub.ble.broadcast(dist)
     esq = coresq.color()
@@ -187,11 +177,11 @@ while True:
                         dirpreto = False
                         esqpreto = False
                 else:
-                    if not esq_e_preto and meio > 50 and not dir_e_preto:
+                    if esq != Color.BLACK and meio > 50 and dir != Color.BLACK:
                         motor_esq.run(vel)
                         motor_dir.run(vel)
                         wait(200)
-                    elif dir_e_preto and esq_e_preto:
+                    elif dir == Color.BLACK and esq == Color.BLACK:
                         motor_esq.run(vel)
                         motor_dir.run(vel)
                         dirpreto = True
@@ -206,14 +196,15 @@ while True:
                         correcao = (kp * erro) + (ki * integral) + (kd * derivada)
                         if correcao > 300: correcao = 300
                         elif correcao < -300: correcao = -300
-                        if dir_e_preto and dir != Color.GREEN:
+                        if dir == Color.BLACK:
                             dirpreto = True
-                        elif esq_e_preto and esq != Color.GREEN:
+                        elif esq == Color.BLACK:
                             esqpreto = True
                         motor_esq.run(vel + correcao)
                         motor_dir.run(vel - correcao)
                         erro_anterior = erro
                         dirpreto = False
                         esqpreto = False
+
     print("esquerda: {}, meio: {}, direita: {}, distância: {}, arfagem: {}".format(esq, meio, dir, dist, arfagem))
     wait(20)
