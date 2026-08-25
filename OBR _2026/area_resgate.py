@@ -58,6 +58,7 @@ while True:
         mensagem = 0
     print(mensagem)
     if dist_esq + dist_dir < 300 and arfagem > -3 and arfagem < 3:
+        vez = 1
         garra.run(-670)
         hub.ble.broadcast(200)
         wait(1000)
@@ -73,32 +74,37 @@ while True:
         wait(1000)
         garra.stop()
         while parar != 7777777:
-            if parede == 502:
-                wait(20)
-            elif parede == 503:
-                while hub.imu.heading() > -40:
-                    dist_esq = ultra_esq.distance()
-                    dist_dir = ultra_dir.distance()
-                    dist = (dist_esq, dist_dir)
-                    hub.ble.broadcast(dist)
+            while vez != 3:
+                if parede == 502:
                     wait(20)
-                hub.imu.reset_heading(0)
-                wait(2000)
-                dist_dir = ultra_dir.distance()
-                if dist_dir < 150: canto = 1
-                else: canto = 0
-                print(canto)
-                hub.ble.broadcast(canto)
-                print(dist_dir)
-                hub.light.on(Color.GREEN)
-                if canto == 1: 
-                    while hub.imu.heading() < 60: wait(20)
-                    while cores.color() != Color.GREEN and cores.color() != Color.RED:
-                        cor = cores.color() 
-                        hub.ble.broadcast(str(cor))
-                        print("cor:", cor, "| h:", hsv.h, "s:", hsv.s, "v:", hsv.v)
+                elif parede == 503:
+                    while hub.imu.heading() > -10:
+                        dist_esq = ultra_esq.distance()
+                        dist_dir = ultra_dir.distance()
+                        dist = (dist_esq, dist_dir)
+                        hub.ble.broadcast(dist)
                         wait(20)
-                    cor = cores.color()
-                    hub.ble.broadcast(str(cor))
-                    wait(100)
+                    hub.imu.reset_heading(0)
+                    wait(2000)
+                    dist_dir = ultra_dir.distance()
+                    if dist_dir < 150: canto = 1
+                    else: canto = 0
+                    print(canto)
+                    hub.ble.broadcast(canto)
+                    print(dist_dir)
+                    hub.light.on(Color.GREEN)
+                    if canto == 1: 
+                        while hub.imu.heading() < 69: wait(20)
+                        while cores.color() != Color.GREEN and cores.color() != Color.RED:
+                            cor = cores.color() 
+                            hub.ble.broadcast(str(cor))
+                            print("cor:", cor, "| h:", hsv.h, "s:", hsv.s, "v:", hsv.v)
+                            if cor == Color.GREEN:
+                                canto_verde = (parede, vez, cor)
+                            elif cor == Color.GREEN:
+                                canto_vermelho = (parede, vez, cor)
+                            wait(20)
+                vez = vez + 1
+                wait(20)
+
     wait(20)
