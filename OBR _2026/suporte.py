@@ -6,7 +6,10 @@ from pybricks.tools import wait, StopWatch
 hub = PrimeHub(broadcast_channel=2, observe_channels=[1])
 hub.light.on(Color.MAGENTA)
 
-cores = ColorSensor(Port.F)
+ultra = UltrasonicSensor(Port.C)
+cordir = ColorSensor(Port.B)
+cormeio = ColorSensor(Port.A)
+coresq = ColorSensor(Port.D)
 
 Color.SILVER = Color(h=0, s=0, v=75)
 Color.BLACK = Color(h=240 < 170, s=40<1, v= 100 < 10)
@@ -16,18 +19,19 @@ coresq.detectable_colors(cores)
 
 def mapeia_verde(sensor):                                                     #
     dados = sensor.hsv()                                                      #
-    if (160 <= dados.h <= 200) and (dados.s > 25) and (40 <= dados.v <= 100): # função ler verde
+    if (160 <= dados.h <= 200) and (dados.s < 40) and (40 <= dados.v <= 100): # função ler verde
         return True                                                           #
     return False                                                              #
 
 omnitrix = StopWatch()
 
-omnitrix.reset()
-andar.straight(120)
-print(omnitrix.time())
-
 while True:
-    cor = cores.color()
-    hsv = cores.hsv()
-    print("cor:", cor, "| h:", hsv.h, "s:", hsv.s, "v:", hsv.v)
+    esq_verde = mapeia_verde(coresq)
+    esq = coresq.hsv()
+    print(esq.h, esq.s, esq.v)
+    esqcor = coresq.color()
+    if esq_verde:
+        hub.light.on(Color.GREEN)
+    else:
+        hub.light.on(Color.RED)
     wait(20)
