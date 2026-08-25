@@ -200,3 +200,183 @@ def cruzar_gap():
             wait(10)
       robo.stop()
       return False
+def tratar_beco_sem_saida():
+    robo.stop()
+    wait(200)
+    robo.turn(180)
+    reset_pid()
+
+def tratar_intersecao():
+    robo.straight(30)
+    if na_linha(sensor_esq) and not na_linha(sensor_dir):
+        robo.turn(-30)
+    elif na_linha(sensor_dir) and not na_linha(sensor_esq):
+        robo.turn(30)
+    reset_pid()
+def detectar_gangorra():
+    if not hub.imu.ready():
+        return False
+    pitch = hub.imu.tilt()[0]
+    return abs(pitch) > 8
+def tratar_gangorra():
+    robo.stop()
+    wait(300)
+    robo.drive(VEL_BUSCA, 0)
+    timer = StopWatch()
+    while timer.time() < 3000:
+        pitch = hub.imu.tilt()[0]
+        if pitch > 5:
+            robo.drive(VEL_PADRAO, 0)
+            wait(800)
+            break
+        wait(50)
+    robo.drive(VEL_PADRAO, 0)
+    wait(300)
+    reset_pid()
+
+def entrar_resgate():
+    robo.stop()
+    wait(200)
+    robo.straight(50)
+    enviar_comando(CMD_RESCUE_MODE)
+    aguardar_status(STAT_READY, 3000)
+    enviar_comando(CMD_DISPOSAL_CLOSE)
+    aguardar_status(STAT_READY, 2000)
+
+def navegar_resgate(timer_global):
+    tempo_resgate = StopWatch()
+    TEMPO_MAX_RESGATE = 90000
+    while tempo_resgate.time() < TEMPO_MAX_RESGATE:
+        if timer_global.time() > TEMPO_MAXIMO - 10000:
+            break
+        dados = ler_dados_atlas()
+        if dados is None or len(dados) < 4:
+            robo.drive(VEL_BUSCA, 0)
+            wait(50)
+            continue
+        us_esq_atlas = dados[0]
+        us_dir_atlas = dados[1]
+        cor_garra = dados[2]
+        status = dados[3]
+        if na_linha(sensor_meio):
+            return True
+        if us_frontal.distance() < DIST_OBSTACULO:
+            robo.stop()
+            wait(100)
+            robo.turn(60)
+            continue
+        vitima_esq = 0 < us_esq_atlas < DIST_VITIMA
+        vitima_dir = 0 < us_dir_atlas < DIST_VITIMA
+        if vitima_esq or vitima_dir:
+            coletar_vitima(vitima_esq)
+            continue
+        if 0 < us_dir_atlas < 200:
+            erro_parede = DIST_PAREDE - us_dir_atlas
+            correcao = erro_parede * 0.5
+            robo.drive(VEL_BUSCA, correcao)
+        elif 0 < us_esq_atlas < 200:
+            erro_parede = DIST_PAREDE - us_esq_atlas
+            correcao = -erro_parede * 0.5
+            robo.drive(VEL_BUSCA, correcao)
+        else:
+            robo.drive(VEL_BUSCA, 0)
+        wait(50)
+    return False
+
+def coletar_vitima(vitima_na_esquerda):
+    robo.stop()
+    wait(200)
+
+    if vitima_na_esquerda:
+        robo.turn(-30)
+    else:
+        robo.turn(30)
+    robo.straight(50)
+    enviar_comando(CMD_PICKUP)
+    timer = StopWatch()
+    while timer.time() < 5000:
+        dados = ler_dados_atlas()
+        if dados is not None and len(dados) >= 4:
+            status = dados[3]
+            if status == STAT_VITIMA_VIVA:
+                enviar_comando(CMD_PADDLE_ALIVE)
+                aguardar_status(STAT_READY, 2000)
+                break
+            elif status == STAT_VITIMA_MORTA:
+                enviar_comando(CMD_PADDLE_DEAD)
+                aguardar_status(STAT_READY, 2000)
+                break
+            elif status == STAT_SEM_VITIMA:
+                break
+        wait(50)
+    if vitima_na_esquerda:
+        robo.turn(30)
+    else:
+        robo.turn(-30)
+
+def sair_resgate():
+    timer = StopWatch()
+    while timer.time() < 5000:
+        if na_linha(sensor_meio) or na_linha(sensor_esq) or na_linha(sensor_dir):
+            reset_pid()
+            break
+        robo.drive(VEL_BUSCA, 30)
+        wait(10)
+    robo.stop()
+
+    enviar_comando(CMD_TRANSPORT_MODE)
+    aguardar_status(STAT_READY, 3000)
+    reset_pid()
+
+def depositar_vitimas():
+    robo.stop()
+    wait(500)
+    enviar_comando(CMD_DISPOSAL_OPEN)
+    aguardar_status(STAT_READY, 3000)
+    wait(2000)
+    enviar_comando(CMD_DISPOSAL_CLOSE)
+    wait(1000)
+    enviar_comando(CMD_STOP)
+def main():
+    timer_global = StopWatch()
+    calibrar()
+    hub.display.text("RDY")
+    while not hub.buttons.pressed():
+        wait(10)
+    while hub.buttons.pressed():
+        wait(10)
+    timer_global.reset()
+    reset_pid()
+    estado = "SEGUIR_LINHA"
+    while timer_global.time() < TEMPO_MAXIMO:
+        if timer_global.time() > TEMPO_MAXIMO - 5000 and estado != "CHEGADA":
+            estado = "CHEGADA"
+        if estado == "SEGUIR_LINHA":
+            evento = seguir_linha(VEL_PADRAO)
+            if evento == "obstaculo":
+                desviar_obstaculo()
+            elif evento == "perdeu_linha":
+                achou = cruzar_gap()
+                if not achou:
+                    tratar_beco_sem_saida()
+            elif evento == "intersecao":
+                tratar_intersecao()
+            elif evento == "prata":
+                estado = "RESGATE"
+            elif evento == "vermelho":
+                estado = "CHEGADA"
+            elif detectar_gangorra():
+                tratar_gangorra()
+        elif estado == "RESGATE":
+            entrar_resgate()
+            achou_saida = navegar_resgate(timer_global)
+            sair_resgate()
+            estado = "SEGUIR_LINHA"
+        elif estado == "CHEGADA":
+            depositar_vitimas()
+            hub.display.text("END")
+            break
+        wait(5)
+    robo.stop()
+    enviar_comando(CMD_STOP)
+main()
