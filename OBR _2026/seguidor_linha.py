@@ -1,382 +1,283 @@
 from pybricks.hubs import PrimeHub
-from pybricks.parameters import Port, Direction, Color, Button, Stop
-from pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor
-from pybricks.robotics import DriveBase
+from pybricks.pupdevices import Motor, UltrasonicSensor, ColorSensor
+from pybricks.parameters import Color, Port, Direction
 from pybricks.tools import wait, StopWatch
+from pybricks.robotics import DriveBase
 
-hub = PrimeHub(broadcast_channel=1, observe_channels=[2]) 
+hub = PrimeHub(broadcast_channel=1, observe_channels=[2])
 
-motor_esq = Motor(Port.F, Direction.COUNTERCLOCKWISE)
-motor_dir = Motor(Port.E, Direction.CLOCKWISE)
-sensor_esq = ColorSensor(Port.B)
-sensor_meio = ColorSensor(Port.A)
-sensor_dir = ColorSensor(Port.D)
-us_frontal = UltrasonicSensor(Port.C)
+COD_ENTROU_CANTO = 100
+COD_SAIDA_ESQ = 201
+COD_SAIDA_FRENTE = 202
+COD_SAIDA_DIR = 203
+COD_LIBERA = 10000
+COD_ANDA_FRENTE = 300
+COD_GIRA_90 = 301
+COD_GIRA_90N = 302
+COD_PAUSA = 500
+COD_PAREDE_ESQ = 502
+COD_PAREDE_DIR = 503
+COD_ALINHA = 401
 
-robo = DriveBase(motor_esq, motor_dir, wheel_diameter=63, axle_track=133)
-robo.use_gyro(True)
+ultra = UltrasonicSensor(Port.C)
+cordir = ColorSensor(Port.B)
+cormeio = ColorSensor(Port.A)
+coresq = ColorSensor(Port.D)
+motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)
+motor_dir = Motor(Port.E)
+andar = DriveBase(motor_esq, motor_dir, 63, 133)
+andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, turn_acceleration=300)
 
-KP = 1.2
-KI = 0.0
-KD = 0.8
-VEL_PADRAO = 180
-VEL_CURVA = 100
-VEL_RESGATE = 80
-VEL_BUSCA = 60
-LIM_PRETO = 15
-LIM_BRANCO = 55
-LIM_PRATA = 88
-DIST_OBSTACULO = 60
-DIST_PAREDE = 80
-DIST_VITIMA = 40
-TEMPO_MAXIMO = 290000
+Color.SILVER = Color(h=0, s=0, v=75)
+Color.BLACK = Color(h=240, s=100, v=20)
+Color.GREEN = Color(h=186, s=80, v=50)
+cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.RED)
+cordir.detectable_colors(cores)
+coresq.detectable_colors(cores)
 
-pid_integral = 0
-pid_ultimo_erro = 0
-alvo_pid = 35
+omnitrix = StopWatch()
+reflection = 36
+vel = 150
+kp = 5
+ki = 0.01
+kd = 20
+integral = 0
+erro_anterior = 0
+ultimo_dist = 0
+ultima_arfagem = 0
+dirpreto = False
+esqpreto = False
+tempo = 0
+na_area_resgate = False
+passou_rampa = False
+ultimo_comando = None
+saida = 0
+dist_esq = 0
+dist_dir = 0
+dist_esq1 = 0
+dist_dir1 = 0
+pacote = 0, 0
 
-CMD_IDLE = 0
-CMD_PICKUP = 1
-CMD_RELEASE = 2
-CMD_PADDLE_ALIVE = 3
-CMD_PADDLE_DEAD = 4
-CMD_DISPOSAL_CLOSE = 5
-CMD_DISPOSAL_OPEN = 6
-CMD_RESCUE_MODE = 7
-CMD_TRANSPORT_MODE = 8
-CMD_STOP = 9
-STAT_READY = 0
-STAT_PICKUP_DONE = 1
-STAT_RELASE_DONE = 2
-STAT_VITIMA_VIVA = 3
-STAT_VITIMA_MORTA = 4
-STAT_SEM_VITIMA = 5
-STAT_OCUPADO = 6
+def mapeia_verde(sensor):
+    dados = sensor.hsv()
+    if (160 <= dados.h <= 210) and (dados.s > 40) and (40 <= dados.v <= 100):
+        return True
+    return False
 
-def enviar_comando(cmd, param=0):
-      hub.ble.broadcast((cmd, param))
-def ler_dados_atlas():
-      return hub.ble.observe(2)
-def obter_status_atlas():
-      dados = ler_dados_atlas()
-      if dados is not None and len(dados) >= 4:
-            return dados[2]
-      return None
-def aguardar_status(status_esperando, timeout_ms=5000):
-      timer = StopWatch()
-      while timer.time() < timeout_ms:
-            s = obter_status_atlas()
-            if s == status_esperando:
-                  return True
-            wait(50)
-      return False
-def na_linha(s):
-      return s.reflection() < LIM_PRETO
-def no_branco(s):
-      return s.reflection() > LIM_BRANCO
-def eh_prata(s):
-      return s.reflection() > LIM_PRATA
-def eh_vermelho(s):
-      return s.color() == Color.RED
-def todos_pretos():
-      return na_linha(sensor_esq) and na_linha(sensor_meio) and na_linha(sensor_dir)
-def todos_brancos():
-      return no_branco(sensor_esq) and no_branco(sensor_meio) and no_branco(sensor_dir)
-def calibrar():
-      global alvo_pid
-      hub.display.text("IMU")
-      timer_imu = StopWatch()
-      while not hub.imu.ready() and timer_imu.time() < 5000:
-            wait(100)
-      if hub.imu.ready():
-            hub.display.text("OK")
-      else:
-            hub.display.text("!")
-      wait(500)
-      hub.display.text("PRE")
-      while not hub.buttons.pressed():
-            wait(10)
-      while hub.buttons.pressed():
-            wait(10)
-      preto = sensor_meio.reflection()
-      hub.display.text("BRC")
-      while not hub.buttons.pressed():
-            wait(10)
-      while hub.buttons.pressed():
-            wait(10)
-      branco = sensor_meio.reflection()
-      alvo_pid = (preto + branco) / 2
-      robo.settings(straight_speed=200, turn_rate=120)
-      hub.display.text("GO")
-      wait(500)
-def reset_pid():
-      global pid_integral, pid_ultimo_erro
-      pid_integral = 0
-      pid_ultimo_erro = 0
-def seguir_linha(velocidade=VEL_PADRAO):
-      global pid_integral, pid_ultimo_erro
-      refl = sensor_meio.reflection()
-      erro = alvo_pid - refl
-      pid_integral += erro
-      pid_integral = max(-50, min(50, pid_integral))
-      derivativo = erro - pid_ultimo_erro
-      pid_ultimo_erro = erro
-      correcao = KP * erro + KI * pid_integral + KD * derivativo
-      robo.drive(velocidade, correcao)
+hub.imu.reset_heading(0)
+hub.light.on(Color.BLUE)
 
-      if us_frontal.distance() < DIST_OBSTACULO:
-            return "obstaculo"
-      if eh_prata(sensor_meio):
-            return "prata"
-      if eh_vermelho(sensor_meio):
-            return "vermelho"
-      if todos_pretos():
-            return "intersecao"
-      if todos_brancos():
-            return "perdeu_linha"
-      return None
+while True:
+    esq_e_verde = mapeia_verde(coresq)
+    dir_e_verde = mapeia_verde(cordir)
+    dist = ultra.distance()
+    hub.ble.broadcast(dist)
+    esq = coresq.color()
+    dir = cordir.color()
+    meio = cormeio.reflection()
+    arfagem, rolagem = hub.imu.tilt()
+    arfagem = arfagem + 3.6
+    hsv_esq = coresq.hsv()
+    hsv_meio = cormeio.hsv()
+    hsv_dir = cordir.hsv()
+    mensagem = hub.ble.observe(2)
+    vel = 150
 
-def desviar_obstaculo():
-      robo.stop()
-      wait(100)
-      if dist < 90:
-                robo.turn(80)
-                ultimo_dist = us_frontal.distance()
+    if arfagem > 5 or arfagem < -5:
+        passou_rampa = True
+        if arfagem > 3:
+            vel = 300
+        elif arfagem < -3:
+            vel = 150
+        hub.imu.reset_heading(0)
+        while arfagem > 3 or arfagem < -3:
+            guinada = hub.imu.heading()
+            arfagem, rolagem = hub.imu.tilt()
+            arfagem = arfagem + 3.6
+            esq = coresq.color()
+            dir = cordir.color()
+            ad = 0
+            ae = 0
+            if dir == Color.BLACK:
+                ae = 200
+            elif esq == Color.BLACK:
+                ad = 200
+            motor_esq.run(guinada * -10 + vel + ae)
+            motor_dir.run(guinada * 10 + vel + ad)
+            wait(20)
+    else:
+        if mensagem == 200:
+            parede = 0
+            andar.straight(40)
+            andar.stop()
+            dist = ultra.distance()
+            hub.ble.broadcast(dist)
+            wait(1000)
+            mensagem = hub.ble.observe(2)
+            print(mensagem)
+            if mensagem == 502: parede = 502
+            elif mensagem == 503: parede = 503
+            wait(2000)
+            while mensagem != 7777777:
+                if parede == 502:
+                    wait(20)
+                elif parede == 503:
+                    dist = ultra.distance()
+                    pacote = hub.ble.observe(2)
+                    print(pacote)
+                    dist_esq1, dist_dir1 = pacote
+                    hub.imu.reset_heading(0)
+                    while dist > 350:
+                        pacote = hub.ble.observe(2)
+                        dist_esq, dist_dir = pacote
+                        dist = ultra.distance()
+                        motor_esq.run(300 - (dist_dir1 - dist_dir) - (hub.imu.heading() * 2))
+                        motor_dir.run(320 + (dist_dir1 - dist_dir) + (hub.imu.heading() * 2))
+                        print(dist)
+                        wait(20)
+                    while hub.imu.heading() > -44:
+                        motor_esq.run(50)
+                        motor_dir.run(250)
+                    andar.straight(100)
+                    hub.light.on(Color.WHITE)
+                    wait(1500)
+                    hub.light.on(Color.RED)
+                    mensagem = hub.ble.observe(2)
+                    print(mensagem)
+                    if mensagem == 0:
+                        wait(20)
+                    elif mensagem == 1:
+                        hub.imu.reset_heading(0)
+                        while hub.imu.heading() < 69:
+                            motor_esq.run(150)
+                            motor_dir.run(-50)
+                            wait(20)
+                        wait(500)
+                        mensagem = hub.ble.observe(2)
+                        while mensagem != Color.GREEN and mensagem != Color.RED:
+                            mensagem = hub.ble.observe(2)
+                            motor_esq.run(75)
+                            motor_dir.run(75)
+                            print(mensagem)
+                            wait(20)
+                        andar.stop()
+                        hub.imu.reset_heading(0)
+                        while hub.imu.heading() > -89:
+                            motor_esq.run(-100)
+                            motor_dir.run(100)
+                            wait(20)
+                        andar.stop()
+                    andar.stop()
+                    wait(999999)
+            wait(20)
+        else:
+            if dist < 90:
+                andar.turn(80)
+                ultimo_dist = ultra.distance()
                 while dist <= ultimo_dist:
-                    ultimo_dist = us_frontal.distance()
+                    ultimo_dist = ultra.distance()
                     motor_esq.run(-100)
                     motor_dir.run(100)
                     wait(20)
-                    dist = us_frontal.distance()
+                    dist = ultra.distance()
                     if dist > 300: dist = 300
                     if ultimo_dist > 300: ultimo_dist = 300
                     if dist > (ultimo_dist + 1): dist = ultimo_dist
                     print("distância: {}, ultima: {}".format(dist, ultimo_dist))
-                robo.turn(100)
-                robo.straight(200)
-                robo.turn(-100)
-                robo.straight(400)
-                robo.turn(-100)
-                robo.straight(200)
-                robo.turn(-115)
-                motor_esq.run(100)
+                andar.turn(100)
+                andar.straight(200)
+                andar.turn(-100)
+                andar.straight(400)
+                andar.turn(-100)
+                andar.straight(200)
+                andar.turn(-115)
+                motor_esq.run(-100)
                 motor_dir.run(100)
                 wait(2500)
-      timer  = StopWatch()
-      while timer.time() < 2000:
-            if na_linha(sensor_meio) or na_linha(sensor_esq) or na_linha(sensor_dir):
-                  reset_pid()
-                  return
-            robo.drive(VEL_BUSCA, -30)
-            wait(10)
-      robo.stop()
-      robo.turn(-30)
-      timer = StopWatch()
-      while timer.time() < 2000:
-            if na_linha(sensor_meio) or na_linha(sensor_esq) or na_linha(sensor_dir):
-                  reset_pid()
-                  return
-            robo.drive(VEL_BUSCA, 30)
-            wait(10)
-      robo.stop()
-      reset_pid()
+                meio = cormeio.reflection()
+                while meio > 80:
+                    motor_esq.run(-100)
+                    motor_dir.run(100)
+                    meio = cormeio.reflection()
+                    wait(20)
+                integral = 0
+                erro_anterior = 0
+            else:
+                if esq_e_verde and dir_e_verde or esq == Color.GREEN and dir == Color.GREEN:
+                    andar.turn(-200)
+                    andar.straight(50)
+                elif esq_e_verde or esq == Color.GREEN:
+                    if dirpreto == False or esqpreto == False:
+                        while esq != Color.WHITE:
+                            motor_esq.run(-50)
+                            motor_dir.run(-75)
+                            esq = coresq.color()
+                        andar.straight(20)
+                        dir = cordir.color()
+                        dir_e_verde = mapeia_verde(cordir)
+                        wait(100)
+                        if dir == Color.GREEN or dir_e_verde:
+                            andar.turn(-200)
+                            andar.straight(50)
+                        else:
+                            andar.straight(40)
+                            andar.turn(-90)
+                            andar.straight(40)
+                    elif esqpreto == True or dirpreto == True:
+                        andar.straight(50)
+                        dirpreto = False
+                        esqpreto = False
+                elif dir_e_verde or dir == Color.GREEN:
+                    if dirpreto == False or esqpreto == False:
+                        while dir != Color.WHITE:
+                            motor_esq.run(-75)
+                            motor_dir.run(-50)
+                            dir = cordir.color()
+                        andar.straight(20)
+                        dir = cordir.color()
+                        esq_e_verde = mapeia_verde(coresq)
+                        wait(100)
+                        if esq == Color.GREEN or esq_e_verde:
+                            andar.turn(-200)
+                            andar.straight(50)
+                        else:
+                            andar.straight(40)
+                            andar.turn(90)
+                            andar.straight(40)
+                        dirpreto = False
+                    elif esqpreto == True or dirpreto == True:
+                        andar.straight(50)
+                        dirpreto = False
+                        esqpreto = False
+                else:
+                    if esq != Color.BLACK and meio > 50 and dir != Color.BLACK:
+                        motor_esq.run(vel)
+                        motor_dir.run(vel)
+                        wait(200)
+                    elif dir == Color.BLACK and esq == Color.BLACK:
+                        motor_esq.run(vel)
+                        motor_dir.run(vel)
+                        dirpreto = True
+                        esqpreto = True
+                        wait(500)
+                    else:
+                        erro = reflection - meio
+                        integral = integral + erro
+                        if integral > 100: integral = 100
+                        if integral < -100: integral = -100
+                        derivada = erro - erro_anterior
+                        correcao = (kp * erro) + (ki * integral) + (kd * derivada)
+                        if correcao > 300: correcao = 300
+                        elif correcao < -300: correcao = -300
+                        if dir == Color.BLACK and dir != Color.GREEN:
+                            dirpreto = True
+                        elif esq == Color.BLACK and esq != Color.GREEN:
+                            esqpreto = True
+                        motor_esq.run(vel + correcao)
+                        motor_dir.run(vel - correcao)
+                        erro_anterior = erro
+                        dirpreto = False
+                        esqpreto = False
 
-def cruzar_gap():
-      robo.drive(VEL_BUSCA, 0)
-      timer = StopWatch()
-      while timer.time() < 1500:
-            if na_linha(sensor_meio):
-                  reset_pid()
-                  return True
-            if na_linha(sensor_esq):
-                  robo.turn(-20)
-                  reset_pid()
-                  return True
-            if na_linha(sensor_dir):
-                  robo.turn(20)
-                  reset_pid()
-                  return True
-            robo.drive(VEL_BUSCA, 0)
-            wait(10)
-      robo.stop()
-      return False
-def tratar_beco_sem_saida():
-    robo.stop()
-    wait(200)
-    robo.turn(180)
-    reset_pid()
-
-def tratar_intersecao():
-    robo.straight(30)
-    if na_linha(sensor_esq) and not na_linha(sensor_dir):
-        robo.turn(-30)
-    elif na_linha(sensor_dir) and not na_linha(sensor_esq):
-        robo.turn(30)
-    reset_pid()
-def detectar_gangorra():
-    if not hub.imu.ready():
-        return False
-    pitch = hub.imu.tilt()[0]
-    return abs(pitch) > 8
-def tratar_gangorra():
-    robo.stop()
-    wait(300)
-    robo.drive(VEL_BUSCA, 0)
-    timer = StopWatch()
-    while timer.time() < 3000:
-        pitch = hub.imu.tilt()[0]
-        if pitch > 5:
-            robo.drive(VEL_PADRAO, 0)
-            wait(800)
-            break
-        wait(50)
-    robo.drive(VEL_PADRAO, 0)
-    wait(300)
-    reset_pid()
-
-def entrar_resgate():
-    robo.stop()
-    wait(200)
-    robo.straight(50)
-    enviar_comando(CMD_RESCUE_MODE)
-    aguardar_status(STAT_READY, 3000)
-    enviar_comando(CMD_DISPOSAL_CLOSE)
-    aguardar_status(STAT_READY, 2000)
-
-def navegar_resgate(timer_global):
-    tempo_resgate = StopWatch()
-    TEMPO_MAX_RESGATE = 90000
-    while tempo_resgate.time() < TEMPO_MAX_RESGATE:
-        if timer_global.time() > TEMPO_MAXIMO - 10000:
-            break
-        dados = ler_dados_atlas()
-        if dados is None or len(dados) < 4:
-            robo.drive(VEL_BUSCA, 0)
-            wait(50)
-            continue
-        us_esq_atlas = dados[0]
-        us_dir_atlas = dados[1]
-        cor_garra = dados[2]
-        status = dados[3]
-        if na_linha(sensor_meio):
-            return True
-        if us_frontal.distance() < DIST_OBSTACULO:
-            robo.stop()
-            wait(100)
-            robo.turn(60)
-            continue
-        vitima_esq = 0 < us_esq_atlas < DIST_VITIMA
-        vitima_dir = 0 < us_dir_atlas < DIST_VITIMA
-        if vitima_esq or vitima_dir:
-            coletar_vitima(vitima_esq)
-            continue
-        if 0 < us_dir_atlas < 200:
-            erro_parede = DIST_PAREDE - us_dir_atlas
-            correcao = erro_parede * 0.5
-            robo.drive(VEL_BUSCA, correcao)
-        elif 0 < us_esq_atlas < 200:
-            erro_parede = DIST_PAREDE - us_esq_atlas
-            correcao = -erro_parede * 0.5
-            robo.drive(VEL_BUSCA, correcao)
-        else:
-            robo.drive(VEL_BUSCA, 0)
-        wait(50)
-    return False
-
-def coletar_vitima(vitima_na_esquerda):
-    robo.stop()
-    wait(200)
-
-    if vitima_na_esquerda:
-        robo.turn(-30)
-    else:
-        robo.turn(30)
-    robo.straight(50)
-    enviar_comando(CMD_PICKUP)
-    timer = StopWatch()
-    while timer.time() < 5000:
-        dados = ler_dados_atlas()
-        if dados is not None and len(dados) >= 4:
-            status = dados[3]
-            if status == STAT_VITIMA_VIVA:
-                enviar_comando(CMD_PADDLE_ALIVE)
-                aguardar_status(STAT_READY, 2000)
-                break
-            elif status == STAT_VITIMA_MORTA:
-                enviar_comando(CMD_PADDLE_DEAD)
-                aguardar_status(STAT_READY, 2000)
-                break
-            elif status == STAT_SEM_VITIMA:
-                break
-        wait(50)
-    if vitima_na_esquerda:
-        robo.turn(30)
-    else:
-        robo.turn(-30)
-
-def sair_resgate():
-    timer = StopWatch()
-    while timer.time() < 5000:
-        if na_linha(sensor_meio) or na_linha(sensor_esq) or na_linha(sensor_dir):
-            reset_pid()
-            break
-        robo.drive(VEL_BUSCA, 30)
-        wait(10)
-    robo.stop()
-
-    enviar_comando(CMD_TRANSPORT_MODE)
-    aguardar_status(STAT_READY, 3000)
-    reset_pid()
-
-def depositar_vitimas():
-    robo.stop()
-    wait(500)
-    enviar_comando(CMD_DISPOSAL_OPEN)
-    aguardar_status(STAT_READY, 3000)
-    wait(2000)
-    enviar_comando(CMD_DISPOSAL_CLOSE)
-    wait(1000)
-    enviar_comando(CMD_STOP)
-def main():
-    timer_global = StopWatch()
-    calibrar()
-    hub.display.text("RDY")
-    while not hub.buttons.pressed():
-        wait(10)
-    while hub.buttons.pressed():
-        wait(10)
-    timer_global.reset()
-    reset_pid()
-    estado = "SEGUIR_LINHA"
-    while timer_global.time() < TEMPO_MAXIMO:
-        if timer_global.time() > TEMPO_MAXIMO - 5000 and estado != "CHEGADA":
-            estado = "CHEGADA"
-        if estado == "SEGUIR_LINHA":
-            evento = seguir_linha(VEL_PADRAO)
-            if evento == "obstaculo":
-                desviar_obstaculo()
-            elif evento == "perdeu_linha":
-                achou = cruzar_gap()
-                if not achou:
-                    tratar_beco_sem_saida()
-            elif evento == "intersecao":
-                tratar_intersecao()
-            elif evento == "prata":
-                estado = "RESGATE"
-            elif evento == "vermelho":
-                estado = "CHEGADA"
-            elif detectar_gangorra():
-                tratar_gangorra()
-        elif estado == "RESGATE":
-            entrar_resgate()
-            achou_saida = navegar_resgate(timer_global)
-            sair_resgate()
-            estado = "SEGUIR_LINHA"
-        elif estado == "CHEGADA":
-            depositar_vitimas()
-            hub.display.text("END")
-            break
-        wait(5)
-    robo.stop()
-    enviar_comando(CMD_STOP)
-main()
+    print("esquerda: {}, meio: {}, direita: {}, distância: {}, arfagem: {}".format(esq, meio, dir, dist, arfagem))
+    wait(20)
