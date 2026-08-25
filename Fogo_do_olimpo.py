@@ -7,16 +7,20 @@ hub = PrimeHub(broadcast_channel=2, observe_channels=[1])
 
 hub.light.on(Color.GREEN)
 
-motorgar = Motor(Port.E)
-motorsel = Motor(Port.C)
-
 cores = ColorSensor(Port.F)
+ultra_esq = UltrasonicSensor(Port.B)
+ultra_dir = UltrasonicSensor(Port.D)
+
+garra = Motor(Port.E)
+selecao = Motor(Port.C)
+descarte = Motor(Port.A)
 
 omnitrix = StopWatch()
 
 while True:
-    cor = cores.color()
-    if cor == Color.RED:
-        hub.light.on(Color.RED)
+    dist_esq = ultra_esq.distance()
+    dist_dir = ultra_dir.distance()
+    if (dist_esq + dist_dir) < 110:
+        hub.ble.broadcast(100)
     else:
-        hub.light.on(Color.GREEN)
+        hub.ble.broadcast(200)
