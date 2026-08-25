@@ -32,7 +32,7 @@ def mapeia_verde(sensor):                                                     #
 omnitrix = StopWatch()
 
 omnitrix.reset()
-andar.straight(40)
+andar.straight(120)
 print(omnitrix.time())
 
 while True:

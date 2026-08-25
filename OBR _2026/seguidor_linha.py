@@ -5,6 +5,7 @@ from pybricks.tools import wait, StopWatch
 from pybricks.robotics import DriveBase
 
 hub = PrimeHub(broadcast_channel=1, observe_channels=[2])
+
 COD_ENTROU_CANTO = 100
 COD_SAIDA_ESQ = 201
 COD_SAIDA_FRENTE = 202
@@ -16,6 +17,7 @@ COD_GIRA_90N = 302
 COD_PAUSA = 500
 COD_PAREDE_ESQ = 502
 COD_PAREDE_DIR = 503
+COD_ALINHA = 401
 
 ultra = UltrasonicSensor(Port.C)
 cordir = ColorSensor(Port.B)
@@ -28,6 +30,7 @@ andar.settings(straight_speed=100, straight_acceleration=300, turn_rate=100, tur
 
 Color.SILVER = Color(h=0, s=0, v=75)
 Color.BLACK = Color(h=240, s=100, v=20)
+Color.GREEN = Color(h=186, s=80, v=50)
 cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.RED)
 cordir.detectable_colors(cores)
 coresq.detectable_colors(cores)
@@ -53,6 +56,7 @@ dist_esq = 0
 dist_dir = 0
 dist_esq1 = 0
 dist_dir1 = 0
+pacote = 0, 0
 
 def mapeia_verde(sensor):
     dados = sensor.hsv()
@@ -78,6 +82,7 @@ while True:
     hsv_dir = cordir.hsv()
     mensagem = hub.ble.observe(2)
     vel = 150
+
     if arfagem > 5 or arfagem < -5:
         passou_rampa = True
         if arfagem > 3:
@@ -108,33 +113,62 @@ while True:
             dist = ultra.distance()
             hub.ble.broadcast(dist)
             wait(1000)
-            mensagem = hub.ble.observe(2)      
-            print(mensagem) 
+            mensagem = hub.ble.observe(2)
+            print(mensagem)
             if mensagem == 502: parede = 502
             elif mensagem == 503: parede = 503
-            wait(1000)
+            wait(2000)
             while mensagem != 7777777:
-                dist = ultra.distance()
-                pacote = hub.ble.observe(2)
-                print(pacote)
-                dist_esq1, dist_dir1 = pacote
-                hub.imu.reset_heading
                 if parede == 502:
-                    while dist > 350:
-                        pacote = hub.ble.observe(2)
-                        dist_esq, dist_dir = pacote
-                        dist = ultra.distance()
-                        motor_esq.run(vel + (dist_esq1 - dist_esq))
-                        motor_dir.run(vel - (dist_esq1 - dist_esq))
-                        wait(20)
+                    wait(20)
                 elif parede == 503:
+                    dist = ultra.distance()
+                    pacote = hub.ble.observe(2)
+                    print(pacote)
+                    dist_esq1, dist_dir1 = pacote
+                    hub.imu.reset_heading(0)
                     while dist > 350:
                         pacote = hub.ble.observe(2)
                         dist_esq, dist_dir = pacote
                         dist = ultra.distance()
-                        motor_esq.run(vel - (dist_dir1 - dist_dir))
-                        motor_dir.run(vel + (dist_dir1 - dist_dir))
+                        motor_esq.run(300 - (dist_dir1 - dist_dir) - (hub.imu.heading() * 2))
+                        motor_dir.run(320 + (dist_dir1 - dist_dir) + (hub.imu.heading() * 2))
+                        print(dist)
                         wait(20)
+                    while hub.imu.heading() > -44:
+                        motor_esq.run(50)
+                        motor_dir.run(250)
+                    andar.straight(100)
+                    hub.light.on(Color.WHITE)
+                    wait(1500)
+                    hub.light.on(Color.RED)
+                    mensagem = hub.ble.observe(2)
+                    print(mensagem)
+                    if mensagem == 0:
+                        wait(20)
+                    elif mensagem == 1:
+                        hub.imu.reset_heading(0)
+                        while hub.imu.heading() < 69:
+                            motor_esq.run(150)
+                            motor_dir.run(-50)
+                            wait(20)
+                        wait(500)
+                        mensagem = hub.ble.observe(2)
+                        while mensagem != Color.GREEN and mensagem != Color.RED:
+                            mensagem = hub.ble.observe(2)
+                            motor_esq.run(75)
+                            motor_dir.run(75)
+                            print(mensagem)
+                            wait(20)
+                        andar.stop()
+                        hub.imu.reset_heading(0)
+                        while hub.imu.heading() > -89:
+                            motor_esq.run(-100)
+                            motor_dir.run(100)
+                            wait(20)
+                        andar.stop()
+                    andar.stop()
+                    wait(999999)
             wait(20)
         else:
             if dist < 90:
