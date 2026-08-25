@@ -1,6 +1,6 @@
 from pybricks.hubs import PrimeHub
 from pybricks.pupdevices import Motor, UltrasonicSensor, ColorSensor
-from pybricks.parameters import Color, Port
+from pybricks.parameters import Color, Port, Direction
 from pybricks.tools import wait, StopWatch
 
 hub = PrimeHub(broadcast_channel=2, observe_channels=[1])
@@ -9,7 +9,7 @@ hub.light.on(Color.MAGENTA)
 cores = ColorSensor(Port.F)
 ultra_esq = UltrasonicSensor(Port.B)
 ultra_dir = UltrasonicSensor(Port.D)
-garra = Motor(Port.E)
+garra = Motor(Port.E, reset_angle=False)
 selecao = Motor(Port.C)
 descarte = Motor(Port.A)
 
@@ -19,7 +19,8 @@ dsaida = 100
 PASSO_QUADRADO = 200
 TEMPO_PASSO = 2500
 TEMPO_GIRO = 1200
-
+GARRA_CIMA = 0
+GARRA_BAIXO = -90
 COD_ENTROU_CANTO = 100
 COD_SAIDA_ESQ = 201
 COD_SAIDA_FRENTE = 202
@@ -28,122 +29,25 @@ COD_PRECISA_GIRAR = 209
 COD_LIBERA = 10000
 COD_ANDA_FRENTE = 300
 COD_GIRA_90 = 301
+COD_ALINHA = 401
 
 parar = 0
 
 Color.SILVER = Color(h=0, s=0, v=75)
 Color.BLACK = Color(h=240, s=100, v=50)
 Color.WHITE = Color(h=0, s=0, v=100)
-cores_ler = (Color.SILVER, Color.BLACK, Color.WHITE)
+Color.GREEN = Color(h=186, s=80, v=50)
+Color.RED = Color(h=0, s=100, v=50)
+cores_ler = (Color.SILVER, Color.BLACK, Color.WHITE, Color.GREEN, Color.RED)
 cores.detectable_colors(cores_ler)
-
-def em_canto():
-    if (ultra_esq.distance() + ultra_dir.distance()) < dsaida:
-        return True
-    return False
-
-def em_area():
-    d_esq = ultra_esq.distance()
-    d_dir = ultra_dir.distance()
-    return (d_esq + d_dir) < 200
-
-def le_distancia_frente():
-    d = hub.ble.observe(1)
-    if d is None:
-        return 0
-    return d
-
-def verifica_saida():
-    d_esq = ultra_esq.distance()
-    d_frente = le_distancia_frente()
-    d_dir = ultra_dir.distance()
-    if d_esq > dsaida:
-        return COD_SAIDA_ESQ
-    if d_frente > dsaida:
-        return COD_SAIDA_FRENTE
-    if d_dir > dsaida:
-        return COD_SAIDA_DIR
-    return COD_PRECISA_GIRAR
-
-def vitima_viva(sensor):
-    dados = sensor.hsv()
-    return dados.s < 15 and dados.v > 60
-
-def vitima_morta(sensor):
-    dados = sensor.hsv()
-    return dados.v < 15
-
-def coleta_vitima():
-    garra.run_angle(200, 90)
-    selecao.run_angle(150, 180)
+hsv = cores.hsv()
+def reseta_angulo():
+    garra.run_target(300)
     wait(200)
-    garra.run_angle(200, -90)
-
-def descarta_vitima():
-    descarte.run_angle(200, 90)
+    garra.reset_angle(0)
     wait(200)
-    descarte.run_angle(200, -90)
 
-def varredura_normal(saida):
-    def lado_parede():
-        d_esq = ultra_esq.distance()
-        d_dir = ultra_dir.distance()
-        if d_esq < d_dir:
-            return "esquerda"
-        elif d_dir < d_esq:
-            return "direita"
-        else:
-            return "centro"
-    def verifica_area_resgate():
-        d_esq = ultra_esq.distance()
-        d_dir = ultra_dir.distance()
-        lado = lado_parede()
-        if d_esq < d_dir and d_esq < 200:
-            return "direita"
-        elif d_dir < d_esq and d_dir < 200:
-            return "esquerda"
-        elif d_esq > 200 and d_dir > 200:
-            return "centro"
-        return None
-    # === CORPO DA VARREDURA ===
-
-    # Anda um passo
-    hub.ble.broadcast(COD_ANDA_FRENTE)
-    wait(TEMPO_PASSO)
-
-    # Verifica vítima
-    if vitima_viva(cores):
-        coleta_vitima()
-    elif vitima_morta(cores):
-        descarta_vitima()
-    area = verifica_area_resgate()
-    if area == "esquerda":
-        print("Area de resgate: esquerda")
-    elif area == "direita":
-        print("Area de resgate: direita")
-    elif area == "centro":
-        print("Area de resgate: centro")
-    lado = lado_parede()
-    print("Parede: " + lado)
-    if saida in (COD_SAIDA_ESQ, COD_SAIDA_FRENTE, COD_SAIDA_DIR):
-        # Achou a saída
-        hub.ble.broadcast(saida)
-        wait(200)
-        hub.ble.broadcast(COD_LIBERA)
-        return True
-
-    # Não achou saída, verifica se está num canto
-    if em_canto():
-        hub.ble.broadcast(COD_ENTROU_CANTO)
-        wait(100)
-
-    hub.ble.broadcast(COD_LIBERA)
-    wait(100)
-    hub.ble.broadcast(COD_GIRA_90)
-    wait(TEMPO_GIRO)
-    return False
-
-# === LOOP PRINCIPAL ===
+garra.run_target(500, 0)
 while True:
     dist_esq = ultra_esq.distance()
     dist_dir = ultra_dir.distance()
@@ -153,20 +57,48 @@ while True:
     if mensagem is None:
         mensagem = 0
     print(mensagem)
-    if dist_esq + dist_dir < 200 and arfagem > -3 and arfagem < 3:
+    if dist_esq + dist_dir < 300 and arfagem > -3 and arfagem < 3:
+        garra.run(-670)
         hub.ble.broadcast(200)
         wait(1000)
+        hub.imu.reset_heading(0)
         dist_esq = ultra_esq.distance()
         dist_dir = ultra_dir.distance()
-        if dist_esq < dist_dir:hub.ble.broadcast(502)
-        else: hub.ble.broadcast(503)
+        if dist_esq < dist_dir:
+            hub.ble.broadcast(502)
+            parede = 502
+        else:
+            hub.ble.broadcast(503)
+            parede = 503
         wait(1000)
+        garra.stop()
         while parar != 7777777:
-            dist_esq = ultra_esq.distance()
-            dist_dir = ultra_dir.distance()
-            dist = (dist_esq, dist_dir)
-            hub.ble.broadcast(dist)
-            wait(20)
-        parar = 0
-
+            if parede == 502:
+                wait(20)
+            elif parede == 503:
+                while hub.imu.heading() > -40:
+                    dist_esq = ultra_esq.distance()
+                    dist_dir = ultra_dir.distance()
+                    dist = (dist_esq, dist_dir)
+                    hub.ble.broadcast(dist)
+                    wait(20)
+                hub.imu.reset_heading(0)
+                wait(2000)
+                dist_dir = ultra_dir.distance()
+                if dist_dir < 150: canto = 1
+                else: canto = 0
+                print(canto)
+                hub.ble.broadcast(canto)
+                print(dist_dir)
+                hub.light.on(Color.GREEN)
+                if canto == 1: 
+                    while hub.imu.heading() < 60: wait(20)
+                    while cores.color() != Color.GREEN and cores.color() != Color.RED:
+                        cor = cores.color() 
+                        hub.ble.broadcast(str(cor))
+                        print("cor:", cor, "| h:", hsv.h, "s:", hsv.s, "v:", hsv.v)
+                        wait(20)
+                    cor = cores.color()
+                    hub.ble.broadcast(str(cor))
+                    wait(100)
     wait(20)
