@@ -9,12 +9,22 @@ hub.light.on(Color.MAGENTA)
 cores = ColorSensor(Port.F)
 
 Color.SILVER = Color(h=0, s=0, v=75)
-Color.BLACK = Color(h=240, s=100, v=50)
-Color.WHITE = Color(h=0, s=0, v=100)
-Color.GREEN = Color(h=186, s=80, v=50)
-Color.RED = Color(h=0, s=100, v=50)
-cores_ler = (Color.SILVER, Color.BLACK, Color.WHITE, Color.GREEN, Color.RED)
-cores.detectable_colors(cores_ler)
+Color.BLACK = Color(h=240 < 170, s=40<1, v= 100 < 10)
+cores = (Color.GREEN, Color.SILVER, Color.BLACK, Color.WHITE, Color.NONE, Color.RED)
+cordir.detectable_colors(cores)
+coresq.detectable_colors(cores)
+
+def mapeia_verde(sensor):                                                     #
+    dados = sensor.hsv()                                                      #
+    if (160 <= dados.h <= 200) and (dados.s > 25) and (40 <= dados.v <= 100): # função ler verde
+        return True                                                           #
+    return False                                                              #
+
+omnitrix = StopWatch()
+
+omnitrix.reset()
+andar.straight(120)
+print(omnitrix.time())
 
 while True:
     cor = cores.color()
