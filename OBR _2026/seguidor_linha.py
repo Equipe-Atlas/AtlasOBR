@@ -91,11 +91,8 @@ while True:
     arfagem, rolagem = hub.imu.tilt()
     arfagem = arfagem + 3.6
     mensagem = hub.ble.observe(2)
-
     if cooldown_obst > 0:
         cooldown_obst = cooldown_obst - 20
-
-    # === RAMPA ===
     if arfagem > 5 or arfagem < -5:
         passou_rampa = True
         vel_rampa = 300 if arfagem > 3 else 150
@@ -114,8 +111,6 @@ while True:
         estado = "linha"
         integral = 0
         erro_anterior = 0
-
-    # === AREA DE RESGATE ===
     elif mensagem == 200:
         parede = 0
         vez = 1
@@ -181,10 +176,7 @@ while True:
                 vez = vez + 1
                 wait(20)
         wait(20)
-
-    # === SEGUE LINHA ===
     else:
-        # --- OBSTACULO ---
         if dist < 90 and cooldown_obst <= 0:
             andar.turn(80)
             ultimo_dist = ultra.distance()
@@ -217,16 +209,12 @@ while True:
             erro_anterior = 0
             cooldown_obst = 3000
             estado = "linha"
-
-        # --- VERDE DOS DOIS LADOS ---
         elif (esq_e_verde and dir_e_verde) or (esq == Color.GREEN and dir == Color.GREEN):
             andar.turn(-200)
             andar.straight(50)
             integral = 0
             erro_anterior = 0
             estado = "linha"
-
-        # --- VERDE ESQUERDO ---
         elif esq_e_verde or esq == Color.GREEN:
             if not dirpreto and not esqpreto:
                 while esq != Color.WHITE:
@@ -251,8 +239,6 @@ while True:
             integral = 0
             erro_anterior = 0
             estado = "linha"
-
-        # --- VERDE DIREITO ---
         elif dir_e_verde or dir == Color.GREEN:
             if not dirpreto and not esqpreto:
                 while dir != Color.WHITE:
@@ -278,8 +264,6 @@ while True:
             integral = 0
             erro_anterior = 0
             estado = "linha"
-
-        # --- ESTADO: GAP ---
         elif estado == "gap":
             if na_linha():
                 estado = "linha"
@@ -319,18 +303,13 @@ while True:
                     estado = "linha"
                 integral = 0
                 erro_anterior = 0
-
-        # --- ESTADO: LINHA (PID + cruzamento + gap detect) ---
         elif estado == "linha":
-            # Cruzamento: ambos laterais pretos
             if dir == Color.BLACK and esq == Color.BLACK:
                 motor_esq.run(vel_base)
                 motor_dir.run(vel_base)
                 dirpreto = True
                 esqpreto = True
                 wait(400)
-
-            # Gap: tudo branco
             elif esq != Color.BLACK and meio > 50 and dir != Color.BLACK:
                 motor_esq.run(vel_base)
                 motor_dir.run(vel_base)
@@ -340,8 +319,6 @@ while True:
                 meio = cormeio.reflection()
                 if esq != Color.BLACK and meio > 50 and dir != Color.BLACK:
                     estado = "gap"
-
-            # PID normal ou recuperacao de curva
             else:
                 erro = reflection - meio
                 integral = integral + erro
@@ -351,14 +328,11 @@ while True:
                 correcao = (kp * erro) + (ki * integral) + (kd * derivada)
                 if correcao > 250: correcao = 250
                 elif correcao < -250: correcao = -250
-
                 fator_vel = abs(correcao) * 0.5
                 if fator_vel > 80: fator_vel = 80
                 vel_atual = vel_base - fator_vel
                 if vel_atual < vel_min: vel_atual = vel_min
-
                 ultimo_erro = erro
-
                 if dir == Color.BLACK and not dir_e_verde:
                     dirpreto = True
                     while meio > 25 and cordir.color() == Color.BLACK:
@@ -378,7 +352,6 @@ while True:
                         motor_esq.run(vel_base)
                         motor_dir.run(vel_base)
                         wait(100)
-
                 elif esq == Color.BLACK and not esq_e_verde:
                     esqpreto = True
                     while meio > 25 and coresq.color() == Color.BLACK:
@@ -404,9 +377,7 @@ while True:
                 erro_anterior = erro
                 dirpreto = False
                 esqpreto = False
-
         else:
             estado = "linha"
-
     print("est: {}, esq: {}, meio: {}, dir: {}, dist: {}, arf: {}".format(estado, esq, meio, dir, dist, arfagem))
     wait(20)
