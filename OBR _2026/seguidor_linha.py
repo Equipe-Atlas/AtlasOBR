@@ -52,6 +52,7 @@ dist_dir = 0
 dist_esq1 = 0
 dist_dir1 = 0
 pacote = 0, 0
+gap = False
 
 def mapeia_verde(sensor):
     dados = sensor.hsv()
@@ -61,7 +62,7 @@ def mapeia_verde(sensor):
 
 def e_preto(sensor):
     dados = sensor.hsv()
-    if (dados.h > 180) and (dados.s < 40) and (dados.v < 70):
+    if (dados.h > 170) and (dados.s < 50) and (dados.v < 80):
         return True
     return False
 
@@ -243,11 +244,51 @@ while True:
                         andar.turn(90)
                         andar.straight(40)
                 else:
-                    if esq != Color.BLACK and meio > 50 and dir != Color.BLACK:
-                        motor_esq.run(vel)
-                        motor_dir.run(vel)
-                        wait(200)
-                    elif dir == Color.BLACK and esq == Color.BLACK:
+                    if not esq_preto and meio > 80 and not dir_preto:
+                        if gap == False: andar.straight(-20)
+                        gap = True
+                        esq_preto = e_preto(coresq)
+                        dir_preto = e_preto(cordir)
+                        meio = cormeio.reflection()
+                        if esq_preto:
+                            while meio > 20:
+                                motor_esq.run(-100)
+                                motor_dir.run(100)
+                                meio = cormeio.reflection()
+                                dir_preto = e_preto(cordir)
+                                if dir_preto:
+                                    while meio > 20:
+                                        motor_esq.run(100)
+                                        motor_dir.run(-125)
+                                        meio = cormeio.reflection()
+                                        dir = cordir.color()
+                                    wait(20)
+                                wait(20)
+                            gap = False
+                        elif dir_preto:
+                            while meio > 25:
+                                motor_esq.run(100)
+                                motor_dir.run(-100)
+                                meio = cormeio.reflection()
+                                esq_preto = e_preto(coresq)
+                                if esq_preto:
+                                    while meio > 25:
+                                        motor_esq.run(-125)
+                                        motor_dir.run(100)
+                                        meio = cormeio.reflection()
+                                        esq = coresq.color()
+                                        wait(20)
+                                wait(20)
+                            gap = False
+                        else:
+                            while not esq_preto and meio > 80 and not dir_preto:
+                                motor_esq.run(vel)
+                                motor_dir.run(vel)
+                                esq_preto = e_preto(coresq)
+                                dir_preto = e_preto(cordir)
+                                meio = cormeio.reflection()
+                                wait(200)
+                    elif esq_preto and dir_preto:
                         motor_esq.run(vel)
                         motor_dir.run(vel)
                         wait(500)
@@ -281,7 +322,9 @@ while True:
                                     tempo = omnitrix.time()
                                     wait(20)
                                 wait(100)
-                                while meio > 20:
+                                esq_preto = e_preto(coresq)
+                                hub.imu.reset_heading(0)
+                                while meio > 20 and not esq_preto and hub.imu.heading() < 100:
                                     motor_esq.run(100)
                                     motor_dir.run(-150)
                                     meio = cormeio.reflection()
@@ -313,7 +356,9 @@ while True:
                                     tempo = omnitrix.time()
                                     wait(20)
                                 wait(100)
-                                while meio > 20:
+                                dir_preto = e_preto(cordir)
+                                hub.imu.reset_heading(0)
+                                while meio > 20 and not dir_preto and hub.imu.heading() > -100:
                                     motor_esq.run(-150)
                                     motor_dir.run(100)
                                     meio = cormeio.reflection()
