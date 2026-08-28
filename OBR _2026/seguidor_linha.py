@@ -77,14 +77,14 @@ while True:
     mensagem = hub.ble.observe(2)
     vel = 150
 
-    if arfagem > 3 or arfagem < -2:
+    if arfagem > 2 or arfagem < -0.6:
         passou_rampa = True
-        if arfagem > 3:
+        if arfagem > 2:
             vel = 300
-        elif arfagem < -3:
+        elif arfagem < -0.6:
             vel = 150
         hub.imu.reset_heading(0)
-        while arfagem > 3:
+        while arfagem > 2:
             guinada = hub.imu.heading()
             arfagem, rolagem = hub.imu.tilt()
             arfagem = arfagem + 3.6
@@ -99,13 +99,12 @@ while True:
             motor_esq.run(guinada * -10 + vel + ae)
             motor_dir.run(guinada * 10 + vel + ad)
             wait(20)
-            andar.turn(-200)
-            while arfagem < -2 and arfagem > -11:
-                motor_esq.run(150)
-                motor_dir.run(150)
-                arfagem, rolagem = hub.imu.tilt()
-                arfagem = arfagem + 3.6
-                wait(20)
+        while arfagem < -0.6 and arfagem > -4:
+            motor_esq.run(150)
+            motor_dir.run(150)
+            arfagem, rolagem = hub.imu.tilt()
+            arfagem = arfagem + 3.5
+            print(arfagem)
     else:
         if mensagem == 200:
             andar.stop()

@@ -38,4 +38,4 @@ while True:
     hsv_esq = coresq.hsv()
     hsv_meio = cormeio.hsv()
     hsv_dir = cordir.hsv()
-    print(hsv_esq.h, hsv_esq.s, hsv_dir.v)
+    print(arfagem)
