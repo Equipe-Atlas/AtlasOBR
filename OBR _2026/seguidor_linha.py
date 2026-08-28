@@ -6,17 +6,18 @@ from pybricks.robotics import DriveBase
 
 hub = PrimeHub(broadcast_channel=1, observe_channels=[2])
 
-COD_ENTROU_RESGATE = 200
-COD_CENTRALIZADO   = 400
-COD_PARA           = 301
-COD_FRENTE         = 302
-COD_DIREITA        = 303
-COD_ESQUERDA       = 304
-COD_FIM            = 600
-
-OFFSET_SENSOR_ULTRA = 50
-VEL_BUSCA = 80
-LIMITE_SEM_COMANDO_MS = 500
+COD_ENTROU_CANTO = 100
+COD_SAIDA_ESQ = 201
+COD_SAIDA_FRENTE = 202
+COD_SAIDA_DIR = 203
+COD_LIBERA = 10000
+COD_ANDA_FRENTE = 300
+COD_GIRA_90 = 301
+COD_GIRA_90N = 302
+COD_PAUSA = 500
+COD_PAREDE_ESQ = 502
+COD_PAREDE_DIR = 503
+COD_ALINHA = 401
 
 ultra = UltrasonicSensor(Port.C)
 cordir = ColorSensor(Port.B)
@@ -35,10 +36,6 @@ cordir.detectable_colors(cores)
 coresq.detectable_colors(cores)
 
 omnitrix = StopWatch()
-<<<<<<< HEAD
-seguranca_comunicacao = StopWatch()
-=======
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
 reflection = 36
 vel = 150
 kp = 6
@@ -47,18 +44,7 @@ kd = 20
 integral = 0
 erro_anterior = 0
 ultimo_dist = 0
-<<<<<<< HEAD
-ultima_arfagem = 0
 tempo = 0
-saida = 0
-dist_esq = 0
-dist_dir = 0
-dist_esq1 = 0
-dist_dir1 = 0
-pacote = 0, 0
-=======
-tempo = 0
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
 gap = False
 
 def mapeia_verde(sensor):
@@ -69,92 +55,9 @@ def mapeia_verde(sensor):
 
 def e_preto(sensor):
     dados = sensor.hsv()
-    if (dados.h > 170) and (dados.s < 50) and (dados.v < 80):
+    if (dados.h > 160) and (dados.s < 60) and (dados.v < 80):
         return True
     return False
-<<<<<<< HEAD
-
-def medir_distancia_media(n=3):
-    total = 0
-    for _ in range(n):
-        total += ultra.distance()
-        wait(10)
-    return total // n
-
-def entrar_area_resgate():
-    andar.stop()
-    wait(500)
-
-    dist_frente = medir_distancia_media()
-    print("Dist frente (X):", dist_frente)
-    distancia_x = (dist_frente / 2) - OFFSET_SENSOR_ULTRA
-    if distancia_x > 0:
-        andar.straight(distancia_x)
-    andar.stop()
-    wait(500)
-
-    hub.imu.reset_heading(0)
-    while hub.imu.heading() < 85:
-        motor_esq.run(100)
-        motor_dir.run(-100)
-        wait(20)
-    motor_esq.stop()
-    motor_dir.stop()
-    wait(500)
-
-    dist_lateral = medir_distancia_media()
-    print("Dist lateral (Y):", dist_lateral)
-    distancia_y = (dist_lateral / 2) - OFFSET_SENSOR_ULTRA
-    if distancia_y > 0:
-        andar.straight(distancia_y)
-    andar.stop()
-    wait(500)
-
-    hub.imu.reset_heading(0)
-    while hub.imu.heading() > -85:
-        motor_esq.run(-100)
-        motor_dir.run(100)
-        wait(20)
-    motor_esq.stop()
-    motor_dir.stop()
-    wait(500)
-
-    hub.ble.broadcast(COD_CENTRALIZADO)
-    wait(500)
-
-    seguranca_comunicacao.reset()
-    while True:
-        msg = hub.ble.observe(2)
-
-        if msg == COD_PARA:
-            motor_esq.stop()
-            motor_dir.stop()
-            seguranca_comunicacao.reset()
-        elif msg == COD_FRENTE:
-            motor_esq.run(VEL_BUSCA)
-            motor_dir.run(VEL_BUSCA)
-            seguranca_comunicacao.reset()
-        elif msg == COD_DIREITA:
-            motor_esq.run(VEL_BUSCA)
-            motor_dir.run(-VEL_BUSCA)
-            seguranca_comunicacao.reset()
-        elif msg == COD_ESQUERDA:
-            motor_esq.run(-VEL_BUSCA)
-            motor_dir.run(VEL_BUSCA)
-            seguranca_comunicacao.reset()
-        elif msg == COD_FIM:
-            motor_esq.stop()
-            motor_dir.stop()
-            break
-        elif seguranca_comunicacao.time() > LIMITE_SEM_COMANDO_MS:
-            motor_esq.stop()
-            motor_dir.stop()
-
-        wait(20)
-
-    hub.ble.broadcast(COD_FIM)
-=======
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
 
 hub.imu.reset_heading(0)
 hub.light.on(Color.BLUE)
@@ -171,17 +74,10 @@ while True:
     meio = cormeio.reflection()
     arfagem, rolagem = hub.imu.tilt()
     arfagem = arfagem + 3.6
-    hsv_esq = coresq.hsv()
-    hsv_meio = cormeio.hsv()
-    hsv_dir = cordir.hsv()
     mensagem = hub.ble.observe(2)
     vel = 150
 
-<<<<<<< HEAD
-    if arfagem > 5 or arfagem < -5:
-=======
     if arfagem > 3 or arfagem < -2:
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
         passou_rampa = True
         if arfagem > 3:
             vel = 300
@@ -192,33 +88,18 @@ while True:
             guinada = hub.imu.heading()
             arfagem, rolagem = hub.imu.tilt()
             arfagem = arfagem + 3.6
-<<<<<<< HEAD
-            esq = coresq.color()
-            dir = cordir.color()
-            ad = 0
-            ae = 0
-            if dir == Color.BLACK:
-=======
             dir_preto = e_preto(cordir)
             esq_preto = e_preto(coresq)
             ad = 0
             ae = 0
             if dir_preto:
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                 ae = 200
             elif esq == Color.BLACK:
                 ad = 200
             motor_esq.run(guinada * -10 + vel + ae)
             motor_dir.run(guinada * 10 + vel + ad)
             wait(20)
-<<<<<<< HEAD
-    else:
-        if mensagem == COD_ENTROU_RESGATE:
-            entrar_area_resgate()
-            integral = 0
-            erro_anterior = 0
-            hub.light.on(Color.BLUE)
-=======
+            andar.turn(-200)
             while arfagem < -2 and arfagem > -11:
                 motor_esq.run(150)
                 motor_dir.run(150)
@@ -303,7 +184,6 @@ while True:
             # Depois do resgate, volta pro seguidor de linha
             integral = 0
             erro_anterior = 0
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
         else:
             if dist < 90:
                 andar.turn(80)
@@ -318,11 +198,7 @@ while True:
                     if ultimo_dist > 300: ultimo_dist = 300
                     if dist > (ultimo_dist + 1): dist = ultimo_dist
                     print("distância: {}, ultima: {}".format(dist, ultimo_dist))
-<<<<<<< HEAD
-                andar.turn(100)
-=======
                 andar.turn(90)
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                 andar.straight(200)
                 andar.turn(-100)
                 andar.straight(400)
@@ -350,10 +226,6 @@ while True:
                         motor_dir.run(-75)
                         esq = coresq.color()
                     andar.straight(20)
-<<<<<<< HEAD
-                    dir = cordir.color()
-=======
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                     dir_e_verde = mapeia_verde(cordir)
                     wait(100)
                     if dir_e_verde:
@@ -369,10 +241,6 @@ while True:
                         motor_dir.run(-50)
                         dir = cordir.color()
                     andar.straight(20)
-<<<<<<< HEAD
-                    dir = cordir.color()
-=======
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                     esq_e_verde = mapeia_verde(coresq)
                     wait(100)
                     if  esq_e_verde:
@@ -385,10 +253,6 @@ while True:
                 else:
                     if not esq_preto and meio > 80 and not dir_preto:
                         if gap == False: andar.straight(-20)
-<<<<<<< HEAD
-                        gap = True
-=======
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                         esq_preto = e_preto(coresq)
                         dir_preto = e_preto(cordir)
                         meio = cormeio.reflection()
@@ -412,27 +276,16 @@ while True:
                                 motor_esq.run(100)
                                 motor_dir.run(-100)
                                 meio = cormeio.reflection()
-<<<<<<< HEAD
-                                esq_preto = e_preto(coresq)
-=======
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                                 if esq_preto:
                                     while meio > 25:
                                         motor_esq.run(-125)
                                         motor_dir.run(100)
                                         meio = cormeio.reflection()
-<<<<<<< HEAD
-                                        esq = coresq.color()
-=======
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                                         wait(20)
                                 wait(20)
                             gap = False
                         else:
-<<<<<<< HEAD
-=======
-                            if meio > 80: gap = True
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
+                            gap = True
                             while not esq_preto and meio > 80 and not dir_preto:
                                 motor_esq.run(vel)
                                 motor_dir.run(vel)
@@ -450,29 +303,16 @@ while True:
                         derivada = erro - erro_anterior
                         correcao = (kp * erro) + (ki * integral) + (kd * derivada)
                         if dir_preto:
-<<<<<<< HEAD
-                            while meio > 25:
-                                motor_esq.run(150)
-=======
                             while meio > 20:
                                 motor_esq.run(125)
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                                 motor_dir.run(-100)
                                 meio = cormeio.reflection()
                                 esq_preto = e_preto(coresq)
                                 if esq_preto:
-<<<<<<< HEAD
-                                    while meio > 25:
-                                        motor_esq.run(-125)
-                                        motor_dir.run(100)
-                                        meio = cormeio.reflection()
-                                        esq = coresq.color()
-=======
                                     while meio > 20:
                                         motor_esq.run(-125)
                                         motor_dir.run(100)
                                         meio = cormeio.reflection()
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                                         wait(20)
                                 wait(20)
                             dir_preto = e_preto(cordir)
@@ -488,19 +328,6 @@ while True:
                                 wait(100)
                                 esq_preto = e_preto(coresq)
                                 hub.imu.reset_heading(0)
-<<<<<<< HEAD
-                                while meio > 20 and not esq_preto and hub.imu.heading() < 100:
-                                    motor_esq.run(100)
-                                    motor_dir.run(-150)
-                                    meio = cormeio.reflection()
-                                    esq = coresq.color
-                                    wait(20)
-                                wait(20)
-                        elif esq_preto:
-                            while meio > 20:
-                                motor_esq.run(-100)
-                                motor_dir.run(150)
-=======
                                 dir_e_verde = mapeia_verde(cordir)
                                 if dir_e_verde: andar.straight(40)
                                 while meio > 20 and hub.imu.heading() < 100:
@@ -525,7 +352,6 @@ while True:
                             while meio > 20:
                                 motor_esq.run(-100)
                                 motor_dir.run(125)
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                                 meio = cormeio.reflection()
                                 dir_preto = e_preto(cordir)
                                 if dir_preto:
@@ -533,10 +359,6 @@ while True:
                                         motor_esq.run(100)
                                         motor_dir.run(-125)
                                         meio = cormeio.reflection()
-<<<<<<< HEAD
-                                        dir = cordir.color()
-=======
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                                     wait(20)
                                 wait(20)
                             esq_preto = e_preto(coresq)
@@ -552,15 +374,6 @@ while True:
                                 wait(100)
                                 dir_preto = e_preto(cordir)
                                 hub.imu.reset_heading(0)
-<<<<<<< HEAD
-                                while meio > 20 and not dir_preto and hub.imu.heading() > -100:
-                                    motor_esq.run(-150)
-                                    motor_dir.run(100)
-                                    meio = cormeio.reflection()
-                                    dir = cordir.color()
-                                    wait(20)
-                                wait(20)
-=======
                                 esq_e_verde = mapeia_verde(coresq)
                                 if esq_e_verde: andar.straight(40)
                                 while meio > 20 and not dir_preto and hub.imu.heading() > -100:
@@ -581,13 +394,8 @@ while True:
                                         motor_dir.run(-125)
                                         meio = cormeio.reflection()
                                         wait(20)
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
                         motor_esq.run(vel + correcao)
                         motor_dir.run(vel - correcao)
                         erro_anterior = erro
     print("esquerda: {}, meio: {}, direita: {}, distância: {}, arfagem: {}".format(esq, meio, dir, dist, arfagem))
-<<<<<<< HEAD
     wait(20)
-=======
-    wait(20)
->>>>>>> 7d6a9e9048f3b67dd298992ffcd4170e88a4eb1b
