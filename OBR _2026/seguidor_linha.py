@@ -55,7 +55,7 @@ def mapeia_verde(sensor):
 
 def e_preto(sensor):
     dados = sensor.hsv()
-    if (dados.h > 170) and (dados.s < 50) and (dados.v < 80):
+    if (dados.h > 160) and (dados.s < 60) and (dados.v < 80):
         return True
     return False
 
@@ -74,9 +74,6 @@ while True:
     meio = cormeio.reflection()
     arfagem, rolagem = hub.imu.tilt()
     arfagem = arfagem + 3.6
-    hsv_esq = coresq.hsv()
-    hsv_meio = cormeio.hsv()
-    hsv_dir = cordir.hsv()
     mensagem = hub.ble.observe(2)
     vel = 150
 
@@ -102,6 +99,7 @@ while True:
             motor_esq.run(guinada * -10 + vel + ae)
             motor_dir.run(guinada * 10 + vel + ad)
             wait(20)
+            andar.turn(-200)
             while arfagem < -2 and arfagem > -11:
                 motor_esq.run(150)
                 motor_dir.run(150)
@@ -287,7 +285,7 @@ while True:
                                 wait(20)
                             gap = False
                         else:
-                            if meio > 80: gap = True
+                            gap = True
                             while not esq_preto and meio > 80 and not dir_preto:
                                 motor_esq.run(vel)
                                 motor_dir.run(vel)
