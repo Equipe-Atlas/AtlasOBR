@@ -38,7 +38,7 @@ coresq.detectable_colors(cores)
 omnitrix = StopWatch()
 reflection = 36
 vel = 150
-kp = 6
+kp = 5
 ki = 0.01
 kd = 20
 integral = 0
