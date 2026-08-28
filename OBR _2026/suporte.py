@@ -12,9 +12,24 @@ coresq = ColorSensor(Port.D)
 motor_esq = Motor(Port.F, positive_direction=Direction.COUNTERCLOCKWISE)
 motor_dir = Motor(Port.E)
 
+def mapeia_verde(sensor):
+    dados = sensor.hsv()
+    if (160 <= dados.h <= 200) and (dados.s > 40) and (40 <= dados.v <= 100):
+        return True
+    return False
+
+def e_preto(sensor):
+    dados = sensor.hsv()
+    if (dados.h > 160) and (dados.s < 60) and (dados.v < 80):
+        return True
+    return False
+
 while True:
+    esq_e_verde = mapeia_verde(coresq)
+    dir_e_verde = mapeia_verde(cordir)
+    esq_preto = e_preto(coresq)
+    dir_preto = e_preto(cordir)
     dist = ultra.distance()
-    hub.ble.broadcast(dist)
     esq = coresq.color()
     dir = cordir.color()
     meio = cormeio.reflection()
@@ -23,4 +38,4 @@ while True:
     hsv_esq = coresq.hsv()
     hsv_meio = cormeio.hsv()
     hsv_dir = cordir.hsv()
-    print(arfagem)
+    print(hsv_esq.h, hsv_esq.s, hsv_dir.v)
