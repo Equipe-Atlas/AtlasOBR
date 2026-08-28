@@ -59,9 +59,18 @@ def e_preto(sensor):
         return True
     return False
 
+def girar_para_heading(alvo, vel_giro=100):
+    while abs(hub.imu.heading() - alvo) > 3:
+        if hub.imu.heading() < alvo:
+            motor_esq.run(vel_giro)
+            motor_dir.run(-vel_giro)
+        else:
+            motor_esq.run(-vel_giro)
+            motor_dir.run(vel_giro)
+        wait(10)
+    andar.stop()
 hub.imu.reset_heading(0)
 hub.light.on(Color.BLUE)
-
 while True:
     esq_e_verde = mapeia_verde(coresq)
     dir_e_verde = mapeia_verde(cordir)
@@ -109,7 +118,6 @@ while True:
         if mensagem == 200:
             andar.stop()
             wait(500)
-            # --- FASE 1: Medir eixo X (parede frontal) ---
             dist_frente = 0
             for _ in range(3):
                 dist_frente += ultra.distance()
@@ -122,7 +130,6 @@ while True:
                 andar.straight(distancia_x)
             andar.stop()
             wait(500)
-            # --- FASE 2: Girar 90 graus a direita ---
             hub.imu.reset_heading(0)
             while hub.imu.heading() < 85:
                 motor_esq.run(100)
@@ -131,7 +138,6 @@ while True:
             motor_esq.stop()
             motor_dir.stop()
             wait(500)
-            # --- FASE 3: Medir eixo Y (parede lateral, agora frontal) ---
             dist_lateral = 0
             for _ in range(3):
                 dist_lateral += ultra.distance()
@@ -143,7 +149,6 @@ while True:
                 andar.straight(distancia_y)
             andar.stop()
             wait(500)
-            # --- FASE 4: Girar -90 graus (voltar a orientacao original) ---
             hub.imu.reset_heading(0)
             while hub.imu.heading() > -85:
                 motor_esq.run(-100)
@@ -152,67 +157,87 @@ while True:
             motor_esq.stop()
             motor_dir.stop()
             wait(500)
-            # --- FASE 5: Avisar Atlas que centralizou ---
             hub.ble.broadcast(400)
             wait(500)
-            # --- FASE 6: Seguir comandos do Atlas na busca de vitimas ---
             while True:
                 msg = hub.ble.observe(2)
                 if msg is None:
                     msg = 0
-                if msg == 301:      # Parar (Atlas achou vitima)
+                if msg == 301:
                     motor_esq.stop()
                     motor_dir.stop()
-                elif msg == 302:    # Ir pra frente
+                elif msg == 302:
                     motor_esq.run(80)
                     motor_dir.run(80)
-                elif msg == 303:    # Girar pra direita
+                elif msg == 303:
                     motor_esq.run(80)
                     motor_dir.run(-80)
-                elif msg == 304:    # Girar pra esquerda
+                elif msg == 304:
                     motor_esq.run(-80)
                     motor_dir.run(80)
-                elif msg == 305:    # Continuar buscando
+                elif msg == 305:
                     motor_esq.run(80)
                     motor_dir.run(80)
-                elif msg == 600:    # Fim, todas coletadas
+                elif msg == 600:
                     motor_esq.stop()
                     motor_dir.stop()
                     break
                 wait(20)
-            # Depois do resgate, volta pro seguidor de linha
             integral = 0
             erro_anterior = 0
         else:
             if dist < 90:
-                andar.turn(80)
-                ultimo_dist = ultra.distance()
-                while dist <= ultimo_dist:
-                    ultimo_dist = ultra.distance()
-                    motor_esq.run(-100)
-                    motor_dir.run(100)
-                    wait(20)
-                    dist = ultra.distance()
-                    if dist > 300: dist = 300
-                    if ultimo_dist > 300: ultimo_dist = 300
-                    if dist > (ultimo_dist + 1): dist = ultimo_dist
-                    print("distância: {}, ultima: {}".format(dist, ultimo_dist))
-                andar.turn(90)
-                andar.straight(200)
-                andar.turn(-100)
-                andar.straight(400)
-                andar.turn(-100)
-                andar.straight(200)
-                andar.turn(-115)
-                motor_esq.run(-100)
-                motor_dir.run(100)
-                wait(2500)
+                andar.stop()
+                wait(100)
+                heading_ref = hub.imu.heading()
+                ang_max_busca = 75
+                ang_margem = 15
+                sinal = 1
+                achou_borda = False
+                for tentativa in (1, -1):
+                    sinal = tentativa
+                    while abs(hub.imu.heading() - heading_ref) < ang_max_busca:
+                        motor_esq.run(sinal * 100)
+                        motor_dir.run(sinal * -100)
+                        if ultra.distance() > 250:
+                            achou_borda = True
+                            break
+                        wait(10)
+                    andar.stop()
+                    if achou_borda:
+                        break
+                    girar_para_heading(heading_ref)
+                    wait(50)
+                heading_afastado = hub.imu.heading() + sinal * ang_margem
+                girar_para_heading(heading_afastado)
+                wait(100)
+                livre_seguidas = 0
+                while livre_seguidas < 10:
+                    motor_esq.run(150)
+                    motor_dir.run(150)
+                    if ultra.distance() > 250:
+                        livre_seguidas += 1
+                    else:
+                        livre_seguidas = 0
+                    wait(10)
+                andar.stop()
+                wait(100)
+                girar_para_heading(heading_ref)
+                wait(100)
+                andar.straight(280)
+                andar.stop()
+                wait(100)
+                girar_para_heading(heading_ref - sinal * 90)
+                wait(100)
                 meio = cormeio.reflection()
-                while meio > 80:
-                    motor_esq.run(-100)
-                    motor_dir.run(100)
+                omnitrix.reset()
+                while meio > 80 and omnitrix.time() < 4000:
+                    motor_esq.run(150)
+                    motor_dir.run(150)
                     meio = cormeio.reflection()
-                    wait(20)
+                    wait(10)
+                andar.stop()
+                girar_para_heading(heading_ref)
                 integral = 0
                 erro_anterior = 0
             else:
